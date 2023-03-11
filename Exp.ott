@@ -91,6 +91,7 @@ substitutions
   single rho a    :: subst_ty_rho
   single tau a    :: subst_ty_mono
 
+% Need free type variables (not sure how to generate it for contexts)
 freevars
   t x     :: fv
   sig a   :: ftv_poly
@@ -182,6 +183,7 @@ formula :: 'formula_' ::=
     {{ tex [[a]][[notin]][[ftvany]] }}
   | x : sig in G             ::   :: inG
     {{ coq binds[[x]][[sig]][[G]] }}
+ 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Rules

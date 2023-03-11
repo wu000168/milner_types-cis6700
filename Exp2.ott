@@ -1,0 +1,130 @@
+embed {{ coq-preamble
+Require Export Metalib.LibLNgen. 
+}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% METAVARIABLES
+
+metavar tmvar, x, y, z ::=
+  {{ repr-locally-nameless }}      
+  {{ com term variables }}
+  {{ lex alphanum }}
+
+metavar tyvar, a, b ::=
+  {{ repr-locally-nameless }}
+  {{ com type variables }}
+  {{ lex alphanum }}
+
+indexvar index, i ::=
+  {{ coq nat }}  
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% GRAMMAR  
+
+grammar 
+
+ty_mono {{ tex \text{Monotypes} }}, tau {{ tex \tau }} :: 'ty_mono_' ::= 
+  | Int            :: :: base 
+    {{ tex \texttt{Int} }} {{ com Indexes }}
+  
+  | a              :: :: var                                     
+    {{ com variables }}
+  
+  | tau1 -> tau2   :: :: func 
+    {{ tex [[tau1]] [[->]] [[tau2]] }} {{ com function types }}
+
+% Use the S flag to indicate that the production is metasyntax 
+
+% For the non-syntax-directed Damas-Milner system, polytypes have rank 1 only, 
+% so a rho-type is just a monotype
+ty_rho {{ tex \text{Rho types} }}, rho {{ tex \rho }} :: 'ty_rho_' ::= 
+  | tau            ::   :: tau {{ com monotypes }}
+
+% A polytype sigma takes the form \forall a . sig
+ty_poly {{ tex \text{Polytypes} }}, sig {{ tex \sigma }} :: 'ty_poly_' ::=
+  | forall a . sig          :: :: poly_gen
+    (+ bind a in sig +)
+    {{ tex \forall [[a]] . [[sig]] }}
+
+% Expressions
+tm {{ tex \text{Terms} }}, t, u :: 'exp_' ::= 
+  | i                     ::    :: lit
+    {{ com Literal }}
+
+  | x                     ::    :: var 
+    {{ com Variable }}
+
+  | \ x . t               ::    :: abs 
+    (+ bind x in t +)
+    {{ tex \lambda [[x]] . [[t]] }}
+    {{ com Abstraction }}
+
+  | t u             ::   :: app 
+    {{ tex [[t]] \; [[u]] }}
+    {{ com Application }}
+
+  | \ ( annot x sig ) . t       ::    :: typed_abs 
+    (+ bind x in t +)
+    {{ tex \lambda ([[x]] :: [[sig]]). [[t]] }}
+    {{ com Typed abstraction }}
+
+  | let x = u in t          ::    :: let 
+    (+ bind x in t +)
+    {{ tex \texttt{let}\; [[x]] = [[u]] \;\texttt{in}\; [[t]] }}
+    {{ com Local binding }}
+
+  | annot t sig               ::    :: type_anno
+    {{ tex [[t]] :: [[sig]] }}
+    {{ com Type annotation }}
+
+% Typing contexts
+ctx {{ tex \text{Typing contexts} }}, G {{ tex \Gamma }} :: ''     ::= {{ coq list ( atom * ty_poly ) }}
+  | empty          ::   :: Empty  {{ coq nil }}
+                                  {{ tex \epsilon }}
+                                  {{ com empty context }}
+
+  | G , x : sig      ::   :: Cons {{ coq (([[x]]~[[sig]])++[[G]]) }}
+                                  {{ com assumption }}
+
+% Definitions that allow Ott to generate Coq definitions of substitution functions
+substitutions
+  single t x      :: subst
+  single sig a    :: subst_ty_poly
+  single rho a    :: subst_ty_rho
+  single tau a    :: subst_ty_mono
+  single ctx a    :: subst_ty_ctx    
+
+% Generate Coq definitions of functions that compute free variables
+freevars
+  t x     :: fv
+
+%%  values  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+grammar
+
+value, v :: 'val_' ::=
+  | i                     ::    :: nat
+  | \ x . t               ::    :: abs 
+    (+ bind x in t +)
+    {{ tex \lambda [[x]] . [[t]] }}
+  | \ ( annot x sig ) . t ::    :: typed_abs 
+    (+ bind x in t +)
+    {{ tex \lambda ([[x]] :: [[sig]]). [[t]] }}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Terminals  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+grammar
+
+terminals :: 'terminals_' ::=
+  | -->               ::   :: step       {{ tex \longrightarrow }}
+  | ->                ::   :: arrow      {{ tex \to }}
+  | annot             ::   :: annot      {{ tex :: }}
+  | fv                ::   :: fv         {{ tex \text{fv} }}
+  | ftv               ::   :: ftv        {{ tex \text{ftv} }}
+  | in                ::   :: in         {{ tex \in }}
+  | notin             ::   :: notin      {{ tex \not\in }}
+  | |-                ::   :: entails    {{ tex \vdash }}
