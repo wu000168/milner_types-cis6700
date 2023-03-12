@@ -47,7 +47,7 @@ Inductive ftvany : Set :=
 (** subrules *)
 Definition is_value_of_tm (t5:tm) : bool :=
   match t5 with
-  |  (exp_lit  i )  => (true)
+  | (exp_lit i ) => (true)
   | (exp_var_b nat) => false
   | (exp_var_f x) => false
   | (exp_abs t) => (true)
@@ -111,60 +111,6 @@ Definition open_tm_wrt_ty_mono tau5 t5 := open_tm_wrt_ty_mono_rec 0 t5 tau5.
 Definition open_ty_rho_wrt_ty_mono tau5 rho5 := open_ty_rho_wrt_ty_mono_rec 0 rho5 tau5.
 
 Definition open_ty_mono_wrt_ty_mono tau_5 tau__6 := open_ty_mono_wrt_ty_mono_rec 0 tau__6 tau_5.
-
-(** closing up abstractions *)
-Fixpoint close_ty_mono_wrt_ty_mono_rec (k:nat) (tau_5:var) (tau__6:ty_mono) {struct tau__6}: ty_mono :=
-  match tau__6 with
-  | ty_mono_base => ty_mono_base 
-  | (ty_mono_var_b nat) => if (k === nat) then (ty_mono_var_b nat) else (ty_mono_var_b (S nat))
-  | (ty_mono_var_f a) => if (tau_5 === a) then (ty_mono_var_b k) else (ty_mono_var_f a)
-  | (ty_mono_func tau1 tau2) => ty_mono_func (close_ty_mono_wrt_ty_mono_rec k tau_5 tau1) (close_ty_mono_wrt_ty_mono_rec k tau_5 tau2)
-end.
-
-Definition close_ty_rho_wrt_ty_mono_rec (k:nat) (tau5:var) (rho5:ty_rho) : ty_rho :=
-  match rho5 with
-  | (ty_rho_tau tau) => ty_rho_tau (close_ty_mono_wrt_ty_mono_rec k tau5 tau)
-end.
-
-Fixpoint close_ty_poly_wrt_ty_mono_rec (k:nat) (tau5:var) (sig5:ty_poly) {struct sig5}: ty_poly :=
-  match sig5 with
-  | (ty_poly_rho rho) => ty_poly_rho (close_ty_rho_wrt_ty_mono_rec k tau5 rho)
-  | (ty_poly_poly_gen sig) => ty_poly_poly_gen (close_ty_poly_wrt_ty_mono_rec (S k) tau5 sig)
-end.
-
-Fixpoint close_tm_wrt_tm_rec (k:nat) (t5:var) (t_6:tm) {struct t_6}: tm :=
-  match t_6 with
-  |  (exp_lit  i )  => exp_lit i
-  | (exp_var_b nat) => if (k === nat) then (exp_var_b nat) else (exp_var_b (S nat))
-  | (exp_var_f x) => if (t5 === x) then (exp_var_b k) else (exp_var_f x)
-  | (exp_abs t) => exp_abs (close_tm_wrt_tm_rec (S k) t5 t)
-  | (exp_app t u) => exp_app (close_tm_wrt_tm_rec k t5 t) (close_tm_wrt_tm_rec k t5 u)
-  | (exp_typed_abs sig t) => exp_typed_abs sig (close_tm_wrt_tm_rec (S k) t5 t)
-  | (exp_let u t) => exp_let (close_tm_wrt_tm_rec k t5 u) (close_tm_wrt_tm_rec (S k) t5 t)
-  | (exp_type_anno t sig) => exp_type_anno (close_tm_wrt_tm_rec k t5 t) sig
-end.
-
-Fixpoint close_tm_wrt_ty_mono_rec (k:nat) (tau5:var) (t5:tm) {struct t5}: tm :=
-  match t5 with
-  |  (exp_lit  i )  => exp_lit i
-  | (exp_var_b nat) => exp_var_b nat
-  | (exp_var_f x) => exp_var_f x
-  | (exp_abs t) => exp_abs (close_tm_wrt_ty_mono_rec k tau5 t)
-  | (exp_app t u) => exp_app (close_tm_wrt_ty_mono_rec k tau5 t) (close_tm_wrt_ty_mono_rec k tau5 u)
-  | (exp_typed_abs sig t) => exp_typed_abs (close_ty_poly_wrt_ty_mono_rec k tau5 sig) (close_tm_wrt_ty_mono_rec k tau5 t)
-  | (exp_let u t) => exp_let (close_tm_wrt_ty_mono_rec k tau5 u) (close_tm_wrt_ty_mono_rec k tau5 t)
-  | (exp_type_anno t sig) => exp_type_anno (close_tm_wrt_ty_mono_rec k tau5 t) (close_ty_poly_wrt_ty_mono_rec k tau5 sig)
-end.
-
-Definition close_tm_wrt_tm t_6 t5 := close_tm_wrt_tm_rec 0 t_6 t5.
-
-Definition close_ty_poly_wrt_ty_mono sig5 tau5 := close_ty_poly_wrt_ty_mono_rec 0 sig5 tau5.
-
-Definition close_tm_wrt_ty_mono t5 tau5 := close_tm_wrt_ty_mono_rec 0 t5 tau5.
-
-Definition close_ty_rho_wrt_ty_mono rho5 tau5 := close_ty_rho_wrt_ty_mono_rec 0 rho5 tau5.
-
-Definition close_ty_mono_wrt_ty_mono tau__6 tau_5 := close_ty_mono_wrt_ty_mono_rec 0 tau__6 tau_5.
 
 (** terms are locally-closed pre-terms *)
 (** definitions *)
@@ -348,6 +294,7 @@ Inductive typing : ctx -> tm -> ty_poly -> Prop :=    (* defn typing *)
      typing G t (ty_poly_poly_gen (ty_poly_rho rho)) ->
      typing G t  (open_ty_poly_wrt_ty_mono (ty_poly_rho rho) tau ) .
 
+
 (* defns JStep *)
 Inductive step : tm -> tm -> Prop :=    (* defn step *)
  | step_let1 : forall (u t u':tm),
@@ -390,4 +337,54 @@ Inductive step : tm -> tm -> Prop :=    (* defn step *)
 
 
 (** infrastructure *)
-#[export] Hint Constructors typing step lc_ty_mono lc_ty_rho lc_ty_poly lc_tm : core.
+Hint Constructors typing step lc_ty_mono lc_ty_rho lc_ty_poly lc_tm : core.
+
+(*************************************************************************)
+(** Notation, manually added *)
+(*************************************************************************)
+
+Notation "Gamma '|-' t '\in' T" := (typing Gamma t T) (at level 40).
+
+(* Empty context is represented as an empty list *)
+Definition empty : list (atom * ty_poly) := nil.
+
+(* Int datatype in the object language *)
+Definition Int : ty_poly := (ty_poly_rho (ty_rho_tau ty_mono_base)).
+
+(** Tells Coq to create a new custom grammar Exp for parsing the object language *)
+(** See Imp chapter of Software Foundations for details *)
+Coercion exp_lit : integer >-> tm.
+
+Declare Custom Entry exp.
+Declare Scope exp_scope. 
+
+Notation "<{ e }>" := e (at level 0, e custom exp at level 99) : exp_scope.
+Notation "( x )" := x (in custom exp, x at level 99) : exp_scope.
+Notation "x" := x (in custom exp at level 0, x constr at level 0) : exp_scope.
+Notation "f x .. y" := (.. (f x) .. y)
+                  (in custom exp at level 0, only parsing,
+                  f constr at level 0, x constr at level 9,
+                  y constr at level 9) : exp_scope.
+Notation "'exp_lit' i" := (exp_lit i) (in custom exp at level 80).                  
+                  
+
+(*************************************************************************)
+(** Lemmas, manually added *)
+(*************************************************************************)
+(** Canonical Forms for int -- having trouble stating this *)                  
+(* Lemma canonical_forms_int : forall (t : tm), 
+  empty |- t \in Int ->
+  is_value_of_tm t ->
+  exists (i : integer), t = exp_lit i.
+Proof.
+  Admitted. *)
+
+(* TODO: figure out what canonical forms is *)
+
+
+(* TODO: figure out how to import PLF notation *)
+(* Theorem progress : forall t T,
+  empty |- t \in T →
+  value t \/ exists t', t --> t'.
+Proof.
+  Admitted. *)
