@@ -57,6 +57,22 @@ Definition is_value_of_tm (t5:tm) : bool :=
   | (exp_type_anno t sig) => false
 end.
 
+(* Variant of is_value_of_tm which is type Prop instead of bool *)
+Inductive is_value (e: tm) : Prop :=
+  | v_int : 
+      value <{ i }>
+  | v_abs : 
+      value <{ \x}>
+  | (exp_abs t) => (True)
+  | (exp_app t u) => False
+  | (exp_typed_abs sig t) => (True)
+  | (exp_let u t) => False
+  | (exp_type_anno t sig) => False
+end.
+
+
+
+
 (** arities *)
 (** opening up abstractions *)
 Fixpoint open_ty_mono_wrt_ty_mono_rec (k:nat) (tau_5:ty_mono) (tau__6:ty_mono) {struct tau__6}: ty_mono :=
@@ -365,26 +381,43 @@ Notation "f x .. y" := (.. (f x) .. y)
                   (in custom exp at level 0, only parsing,
                   f constr at level 0, x constr at level 9,
                   y constr at level 9) : exp_scope.
-Notation "'exp_lit' i" := (exp_lit i) (in custom exp at level 80).                  
-                  
+Notation "'exp_lit' i" := (exp_lit i) (in custom exp at level 80).
+
+
+Notation "x" := x (in custom exp at level 0, x constr at level 0) : exp_scope.
+(* Notation "S -> T" := (Ty_Arrow S T) (in custom exp at level 50, right associativity) : exp_scope *)
+Notation "x y" := (exp_app x y) (in custom exp at level 1, left associativity) : exp_scope.
+Notation "\ x : t , y" :=
+  (exp_abs x t y) (in custom exp at level 90, x at level 99,
+                     t custom exp at level 99,
+                     y custom exp at level 99,
+                     left associativity) : exp_scope.
+
+Open Scope exp_scope.                  
 
 (*************************************************************************)
 (** Lemmas, manually added *)
 (*************************************************************************)
-(** Canonical Forms for int -- having trouble stating this *)                  
-(* Lemma canonical_forms_int : forall (t : tm), 
-  empty |- t \in Int ->
-  is_value_of_tm t ->
-  exists (i : integer), t = exp_lit i.
+
+(* Note: this doesn't compile even when surrounding exp_lit with <{ }> *)
+Lemma canonical_forms_int : forall (t : tm), 
+  typing empty t Int ->
+  is_value t ->
+  exists (i : integer), t = <{ exp_lit i }>.
 Proof.
-  Admitted. *)
+  intros t HT HVal.
+  destruct HVal.
 
-(* TODO: figure out what canonical forms is *)
 
-
-(* TODO: figure out how to import PLF notation *)
-(* Theorem progress : forall t T,
-  empty |- t \in T →
-  value t \/ exists t', t --> t'.
+Theorem progress : forall e T,
+  typing empty e T ->
+  is_value e \/ exists e', step e e'.
 Proof.
-  Admitted. *)
+  intros e T H.
+  assert (typing empty e T); auto.
+  induction H; subst; auto.
+  - (* exp_lit *)
+   left. discriminate H0.
+  - (* exp_lit duplicate *)
+    admit.
+  Admitted.
