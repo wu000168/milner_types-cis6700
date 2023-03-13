@@ -4,6 +4,7 @@ Require Import Metalib.Metatheory.
 Require Import List.
 Require Import Ott.ott_list_core.
 Require Export Metalib.LibLNgen. 
+Require Import Init.Nat.
 
 (** syntax *)
 Definition tmvar : Set := var. (*r variables *)
@@ -57,23 +58,8 @@ Definition is_value_of_tm (t5:tm) : bool :=
   | (exp_type_anno t sig) => false
 end.
 
-(* Variant of is_value_of_tm which is type Prop instead of bool *)
-Inductive is_value (e: tm) : Prop :=
-  | v_int : 
-      value <{ i }>
-  | v_abs : 
-      value <{ \x}>
-  | (exp_abs t) => (True)
-  | (exp_app t u) => False
-  | (exp_typed_abs sig t) => (True)
-  | (exp_let u t) => False
-  | (exp_type_anno t sig) => False
-end.
 
-
-
-
-(** arities *)
+(* arities *)
 (** opening up abstractions *)
 Fixpoint open_ty_mono_wrt_ty_mono_rec (k:nat) (tau_5:ty_mono) (tau__6:ty_mono) {struct tau__6}: ty_mono :=
   match tau__6 with
@@ -369,10 +355,11 @@ Definition Int : ty_poly := (ty_poly_rho (ty_rho_tau ty_mono_base)).
 
 (** Tells Coq to create a new custom grammar Exp for parsing the object language *)
 (** See Imp chapter of Software Foundations for details *)
-Coercion exp_lit : integer >-> tm.
+(* Coercion exp_lit : integer >-> tm. *)
 
 Declare Custom Entry exp.
-Declare Scope exp_scope. 
+Declare Scope exp_scope.
+
 
 Notation "<{ e }>" := e (at level 0, e custom exp at level 99) : exp_scope.
 Notation "( x )" := x (in custom exp, x at level 99) : exp_scope.
@@ -381,7 +368,7 @@ Notation "f x .. y" := (.. (f x) .. y)
                   (in custom exp at level 0, only parsing,
                   f constr at level 0, x constr at level 9,
                   y constr at level 9) : exp_scope.
-Notation "'exp_lit' i" := (exp_lit i) (in custom exp at level 80).
+(* Notation "'exp_lit' i" := (exp_lit i) (in custom exp at level 80) : exp_scope. *)
 
 
 Notation "x" := x (in custom exp at level 0, x constr at level 0) : exp_scope.
@@ -393,20 +380,42 @@ Notation "\ x : t , y" :=
                      y custom exp at level 99,
                      left associativity) : exp_scope.
 
-Open Scope exp_scope.                  
+Local Open Scope exp_scope.                     
+
+(* Variant of is_value_of_tm which is type Prop instead of bool *)
+Definition is_value (t : tm) : Prop := 
+  match t with 
+  | exp_lit _ => True 
+  | exp_abs _ => True 
+  | exp_typed_abs _ _ => True 
+  | _ => False 
+  end.
+
+
+(* Inductive value : tm -> Prop :=
+  | v_int : forall (i : integer), 
+      value <{ exp_lit i }>
+  | v_abs : forall x T2 t1,
+      value <{ \ x : T2 , t1 }>.
+       *)
+
+
+
 
 (*************************************************************************)
 (** Lemmas, manually added *)
 (*************************************************************************)
 
 (* Note: this doesn't compile even when surrounding exp_lit with <{ }> *)
-Lemma canonical_forms_int : forall (t : tm), 
+(* Lemma canonical_forms_int : forall (t : tm), 
   typing empty t Int ->
   is_value t ->
   exists (i : integer), t = <{ exp_lit i }>.
 Proof.
   intros t HT HVal.
-  destruct HVal.
+  destruct HVal. *)
+
+
 
 
 Theorem progress : forall e T,
