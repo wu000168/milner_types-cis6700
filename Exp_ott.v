@@ -4,7 +4,6 @@ Require Import Metalib.Metatheory.
 Require Import List.
 Require Import Ott.ott_list_core.
 Require Export Metalib.LibLNgen. 
-Require Import Init.Nat.
 
 (** syntax *)
 Definition tmvar : Set := var. (*r variables *)
@@ -48,7 +47,7 @@ Inductive ftvany : Set :=
 (** subrules *)
 Definition is_value_of_tm (t5:tm) : bool :=
   match t5 with
-  | (exp_lit i ) => (true)
+  |  (exp_lit  i )  => (true)
   | (exp_var_b nat) => false
   | (exp_var_f x) => false
   | (exp_abs t) => (true)
@@ -58,8 +57,7 @@ Definition is_value_of_tm (t5:tm) : bool :=
   | (exp_type_anno t sig) => false
 end.
 
-
-(* arities *)
+(** arities *)
 (** opening up abstractions *)
 Fixpoint open_ty_mono_wrt_ty_mono_rec (k:nat) (tau_5:ty_mono) (tau__6:ty_mono) {struct tau__6}: ty_mono :=
   match tau__6 with
@@ -296,7 +294,6 @@ Inductive typing : ctx -> tm -> ty_poly -> Prop :=    (* defn typing *)
      typing G t (ty_poly_poly_gen (ty_poly_rho rho)) ->
      typing G t  (open_ty_poly_wrt_ty_mono (ty_poly_rho rho) tau ) .
 
-
 (* defns JStep *)
 Inductive step : tm -> tm -> Prop :=    (* defn step *)
  | step_let1 : forall (u t u':tm),
@@ -340,6 +337,7 @@ Inductive step : tm -> tm -> Prop :=    (* defn step *)
 
 (** infrastructure *)
 Hint Constructors typing step lc_ty_mono lc_ty_rho lc_ty_poly lc_tm : core.
+
 
 (*************************************************************************)
 (** Notation, manually added *)
@@ -430,3 +428,4 @@ Proof.
   - (* exp_lit duplicate *)
     admit.
   Admitted.
+
