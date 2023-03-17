@@ -112,6 +112,60 @@ Definition open_ty_rho_wrt_ty_mono tau5 rho5 := open_ty_rho_wrt_ty_mono_rec 0 rh
 
 Definition open_ty_mono_wrt_ty_mono tau_5 tau__6 := open_ty_mono_wrt_ty_mono_rec 0 tau__6 tau_5.
 
+(** closing up abstractions *)
+Fixpoint close_ty_mono_wrt_ty_mono_rec (k:nat) (tau_5:var) (tau__6:ty_mono) {struct tau__6}: ty_mono :=
+  match tau__6 with
+  | ty_mono_base => ty_mono_base 
+  | (ty_mono_var_b nat) => if (k === nat) then (ty_mono_var_b nat) else (ty_mono_var_b (S nat))
+  | (ty_mono_var_f a) => if (tau_5 === a) then (ty_mono_var_b k) else (ty_mono_var_f a)
+  | (ty_mono_func tau1 tau2) => ty_mono_func (close_ty_mono_wrt_ty_mono_rec k tau_5 tau1) (close_ty_mono_wrt_ty_mono_rec k tau_5 tau2)
+end.
+
+Definition close_ty_rho_wrt_ty_mono_rec (k:nat) (tau5:var) (rho5:ty_rho) : ty_rho :=
+  match rho5 with
+  | (ty_rho_tau tau) => ty_rho_tau (close_ty_mono_wrt_ty_mono_rec k tau5 tau)
+end.
+
+Fixpoint close_ty_poly_wrt_ty_mono_rec (k:nat) (tau5:var) (sig5:ty_poly) {struct sig5}: ty_poly :=
+  match sig5 with
+  | (ty_poly_rho rho) => ty_poly_rho (close_ty_rho_wrt_ty_mono_rec k tau5 rho)
+  | (ty_poly_poly_gen sig) => ty_poly_poly_gen (close_ty_poly_wrt_ty_mono_rec (S k) tau5 sig)
+end.
+
+Fixpoint close_tm_wrt_tm_rec (k:nat) (t5:var) (t_6:tm) {struct t_6}: tm :=
+  match t_6 with
+  |  (exp_lit  i )  => exp_lit i
+  | (exp_var_b nat) => if (k === nat) then (exp_var_b nat) else (exp_var_b (S nat))
+  | (exp_var_f x) => if (t5 === x) then (exp_var_b k) else (exp_var_f x)
+  | (exp_abs t) => exp_abs (close_tm_wrt_tm_rec (S k) t5 t)
+  | (exp_app t u) => exp_app (close_tm_wrt_tm_rec k t5 t) (close_tm_wrt_tm_rec k t5 u)
+  | (exp_typed_abs sig t) => exp_typed_abs sig (close_tm_wrt_tm_rec (S k) t5 t)
+  | (exp_let u t) => exp_let (close_tm_wrt_tm_rec k t5 u) (close_tm_wrt_tm_rec (S k) t5 t)
+  | (exp_type_anno t sig) => exp_type_anno (close_tm_wrt_tm_rec k t5 t) sig
+end.
+
+Fixpoint close_tm_wrt_ty_mono_rec (k:nat) (tau5:var) (t5:tm) {struct t5}: tm :=
+  match t5 with
+  |  (exp_lit  i )  => exp_lit i
+  | (exp_var_b nat) => exp_var_b nat
+  | (exp_var_f x) => exp_var_f x
+  | (exp_abs t) => exp_abs (close_tm_wrt_ty_mono_rec k tau5 t)
+  | (exp_app t u) => exp_app (close_tm_wrt_ty_mono_rec k tau5 t) (close_tm_wrt_ty_mono_rec k tau5 u)
+  | (exp_typed_abs sig t) => exp_typed_abs (close_ty_poly_wrt_ty_mono_rec k tau5 sig) (close_tm_wrt_ty_mono_rec k tau5 t)
+  | (exp_let u t) => exp_let (close_tm_wrt_ty_mono_rec k tau5 u) (close_tm_wrt_ty_mono_rec k tau5 t)
+  | (exp_type_anno t sig) => exp_type_anno (close_tm_wrt_ty_mono_rec k tau5 t) (close_ty_poly_wrt_ty_mono_rec k tau5 sig)
+end.
+
+Definition close_tm_wrt_tm t_6 t5 := close_tm_wrt_tm_rec 0 t_6 t5.
+
+Definition close_ty_poly_wrt_ty_mono sig5 tau5 := close_ty_poly_wrt_ty_mono_rec 0 sig5 tau5.
+
+Definition close_tm_wrt_ty_mono t5 tau5 := close_tm_wrt_ty_mono_rec 0 t5 tau5.
+
+Definition close_ty_rho_wrt_ty_mono rho5 tau5 := close_ty_rho_wrt_ty_mono_rec 0 rho5 tau5.
+
+Definition close_ty_mono_wrt_ty_mono tau__6 tau_5 := close_ty_mono_wrt_ty_mono_rec 0 tau__6 tau_5.
+
 (** terms are locally-closed pre-terms *)
 (** definitions *)
 

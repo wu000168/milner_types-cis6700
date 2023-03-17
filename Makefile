@@ -12,7 +12,7 @@ lngen: Exp.ott
 	lngen --coq Exp_inf.v Exp.ott --coq-ott Exp_ott
 
 Exp_all.tex: ott
-# Exp_ott.v: ott
+# $(EXP_FOLDER)/Exp_ott.v: ott
 ott: Exp.ott
 	ott -i Exp.ott -o Exp_all.tex -o Exp_ott.v
 
