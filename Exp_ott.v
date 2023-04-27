@@ -410,8 +410,8 @@ Inductive inst : ty_poly -> ty_rho -> Prop :=    (* defn inst *)
  | inst_refl : forall (rho:ty_rho),
      lc_ty_rho rho ->
      inst (ty_poly_rho rho) rho
- | inst_trans : forall (sig:ty_poly) (rho:ty_rho) (tau:ty_mono),
-     inst  (open_ty_poly_wrt_ty_mono sig tau )  rho ->
+ | inst_trans : forall (L:vars) (sig:ty_poly) (rho:ty_rho),
+      ( forall a , a \notin  L  -> inst  ( open_ty_poly_wrt_ty_mono sig (ty_mono_var_f a) )  rho )  ->
      inst (ty_poly_poly_gen sig) rho.
 
 

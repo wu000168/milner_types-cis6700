@@ -36,18 +36,23 @@ Notation "f x .. y" := (.. (f x) .. y)
                   (in custom exp at level 0, only parsing,
                   f constr at level 0, x constr at level 9,
                   y constr at level 9) : exp_scope.
-(* Notation "'exp_lit' i" := (exp_lit i) (in custom exp at level 80) : exp_scope. *)
+Notation "# i" := (exp_lit i) (in custom exp at level 80) : exp_scope.
 
 
-Notation "x" := x (in custom exp at level 0, x constr at level 0) : exp_scope.
-(* Notation "S -> T" := (ty_mono_func S T) (in custom exp at level 50, right associativity) : exp_scope *)
+Notation "$ y" := (ty_mono_var_f y) (in custom exp at level 50, right associativity) : exp_scope.
+Notation "T1 -> T2" := (ty_poly_rho (ty_rho_tau (ty_mono_func T1 T2))) (in custom exp at level 80, right associativity) : exp_scope.
+Notation "T1 -> T2" := (ty_rho_tau (ty_mono_func T1 T2)) (in custom exp at level 80, right associativity) : exp_scope.
+Notation "sig ^ tau" := (open_ty_poly_wrt_ty_mono sig tau) (in custom exp at level 1, left associativity) : exp_scope.
+Notation "\gen sig" := (ty_poly_poly_gen sig) (in custom exp at level 1, left associativity) : exp_scope.
+Notation "{{ rho }}" := (ty_poly_rho rho) (in custom exp at level 80, left associativity) : exp_scope.
+Notation "{ tau }" := (ty_rho_tau tau) (in custom exp at level 80, left associativity) : exp_scope.
+Notation "tau1 { x ~> tau2 }" := (subst_ty_mono_ty_mono tau2 (ty_mono_var_f x) tau1) (in custom exp at level 70, left associativity) : exp_scope.
 Notation "x y" := (exp_app x y) (in custom exp at level 1, left associativity) : exp_scope.
 Notation "\ x : t , y" :=
   (exp_abs x t y) (in custom exp at level 90, x at level 99,
                      t custom exp at level 99,
                      y custom exp at level 99,
                      left associativity) : exp_scope.
-
 Local Open Scope exp_scope.                     
 
 Ltac gather_atoms ::=
@@ -66,20 +71,47 @@ Ltac gather_atoms ::=
 (** Lemmas, manually added *)
 (*************************************************************************)
 
+Lemma gen_inst_inv: forall sig rho tau,
+  inst (ty_poly_poly_gen sig) rho
+    -> inst (open_ty_poly_wrt_ty_mono sig tau) rho.
+Proof with eauto.
+  intros. dependent induction H. pick fresh x.
+  (* rewrite (subst_ty_mono_ty_poly_intro x) in IHinst; try fsetdec.
+  rewrite subst_ty_mono_ty_poly_open_ty_poly_wrt_ty_mono in IHinst.
+  rewrite subst_ty_mono_ty_mono_fresh_eq in IHinst.
+   *)
+Admitted.
+
 Lemma gen_inst_int: forall tau sig x,
-  inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau ty_mono_base) 
+    inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau ty_mono_base)
+    -> inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau ty_mono_base).
+Proof with eauto.
+  intros tau sig x H. 
+  dependent induction H; destruct sig; try discriminate; intros.
+  + destruct rho; try discriminate.
+    inversion x; clear x. destruct tau0; try discriminate; try repeat constructor.
+    (* destruct n; try discriminate. destruct tau; try discriminate. *)
+    (* cbv in H1... *)
+
+Admitted.
+
+(* Lemma gen_inst_int: forall tau sig L,
+  (forall x, x `notin` L ->
+    inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau ty_mono_base) )
     -> inst sig (ty_rho_tau ty_mono_base).
-Proof.
-  intros tau sig x Hinst. dependent induction Hinst; intros.
-  - destruct sig.
-    + destruct rho. simpl in x. inversion x. clear x; simpl in H1.
+Proof. *)
+  (* (* intros tau sig L Hinst. dependent induction Hinst; intros. *)
+  - destruct sig; try destruct rho.
+    + simpl in x. inversion x. clear x; simpl in H2.
+      induction tau0; cbv in H2; try repeat constructor.
+      * 
+
     admit.
       (* destruct subst_ty_mono_ty_mono_fresh_eq in H1...
       destruct tau0; try discriminate. exists tau0_1. exists tau0_2.
       constructor. rewrite H1 in H... admit. *)
     + simpl in x. discriminate.
-  - admit.
-  Admitted.
+  - admit. *)
 
 Lemma canonical_forms_int : forall (t : tm) T,
     typing empty t T ->
@@ -93,34 +125,99 @@ Proof with eauto.
   - pick fresh x.
     specialize (H x ltac:(auto)). specialize (H0 x ltac:(auto) ltac:(eauto) Hv).
     inversion Hi; subst.
-    rewrite (subst_ty_mono_ty_poly_intro x) in H2.
-    apply (gen_inst_int _ _ x) in H2.
-    apply (H0 H2). fsetdec.
-Qed.
-
-Lemma gen_inst_fun: forall tau sig T1 T2 x,
-  inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau (ty_mono_func T1 T2)) 
-    -> exists T1' T2', inst sig (ty_rho_tau (ty_mono_func T1' T2')) .
-Proof with eauto.
-  intros tau sig T1 T2 x Hinst. dependent induction Hinst; intros.
-  - destruct sig.
-    + destruct rho. simpl in x. inversion x. clear x; simpl in H1.
-      rewrite subst_ty_mono_ty_mono_fresh_eq in H1...
-      destruct tau0; try discriminate. exists tau0_1. exists tau0_2.
-      constructor. rewrite H1 in H... admit.
-    + simpl in x. discriminate.
-  - destruct sig.
-    + simpl in x. discriminate.
-    + simpl in x. inversion x; subst. clear x.
-      specialize (IHHinst tau (open_ty_poly_wrt_ty_mono sig tau0) T1 T2 x0).
-      rewrite subst_ty_mono_ty_poly_open_ty_poly_wrt_ty_mono in IHHinst.
-      rewrite subst_ty_mono_ty_mono_fresh_eq in IHHinst...
-      specialize (IHHinst ltac:(eauto) ltac:(eauto)).
-      (* rewrite ftv_mono_ty_poly_open_ty_poly_wrt_ty_mono_upper in IHHinst. *)
-      
-      admit.
+    (* rewrite (subst_ty_mono_ty_poly_intro x) in H2. *)
+    (* apply (gen_inst_int _ _ x) in H2. *)
+    (* apply (H0 H2). fsetdec. *)
 Admitted.
 
+Lemma lc_open_mono: forall tau1 tau2,
+  degree_ty_mono_wrt_ty_mono 1 tau1 -> lc_ty_mono tau2 -> lc_ty_mono (open_ty_mono_wrt_ty_mono tau1 tau2).
+Proof with eauto.
+  intros tau1 tau2 H1 H2.
+  induction tau1...
+  - destruct n... inversion H1; subst. inversion H3; subst... inversion H0...
+  - constructor...
+  - inversion H1; subst. constructor...
+Qed.
+
+Lemma lc_open_mono_inv: forall tau1 tau2,
+   lc_ty_mono (open_ty_mono_wrt_ty_mono tau1 tau2) -> lc_ty_mono tau2
+    -> degree_ty_mono_wrt_ty_mono 1 tau1.
+Proof with eauto.
+  intros tau1 tau2 H1.
+  dependent induction H1; intros...
+  - destruct tau1; try discriminate...
+    destruct n... discriminate x.
+  - destruct tau1; try discriminate...
+    destruct n... discriminate x.
+  - destruct tau1; try discriminate...
+    + destruct n... discriminate x.
+    + inversion x.
+      specialize (IHlc_ty_mono1 tau1_1 tau2 ltac:(auto) ltac:(auto)).
+      specialize (IHlc_ty_mono2 tau1_2 tau2 ltac:(auto) ltac:(auto)).
+      constructor...
+Qed.
+
+Lemma open_var_f_fun: forall sig T1 T2 x, x `notin` ftv_mono_ty_poly sig ->
+  inst (open_ty_poly_wrt_ty_mono sig (ty_mono_var_f x)) (ty_rho_tau (ty_mono_func T1 T2))
+    -> forall tau', lc_ty_mono tau' -> exists T1' T2', inst (open_ty_poly_wrt_ty_mono sig tau') (ty_rho_tau (ty_mono_func T1' T2')) .
+Proof with eauto.
+  intros sig T1 T2 x Fr Hinst.
+  dependent induction Hinst; intros.
+  - destruct sig; try discriminate.
+    destruct rho; try discriminate.
+    destruct tau; try discriminate.
+    destruct n; try discriminate.
+    inversion x.
+    exists (open_ty_mono_wrt_ty_mono tau1 tau').
+    exists (open_ty_mono_wrt_ty_mono tau2 tau').
+    repeat constructor; inversion H;
+    inversion H4; subst;
+    apply (lc_open_mono_inv tau1 (ty_mono_var_f x0)) in H7;
+    apply (lc_open_mono_inv tau2 (ty_mono_var_f x0)) in H8; eauto;
+    apply lc_open_mono...
+  (* - specialize (IHHinst x0 T2 T1 sig0 ltac:(auto) ltac:(auto) ltac:(auto) tau' H).
+    destruct sig; try discriminate.
+    inversion x; subst; clear x. specialize (H y ltac:(auto)).
+    destruct sig; try discriminate; simpl in *.
+    + admit.
+    + admit. *)
+Admitted.
+
+Lemma open_base_fun: forall sig T1 T2 x,
+  inst (subst_ty_mono_ty_poly ty_mono_base x sig) (ty_rho_tau (ty_mono_func T1 T2)) 
+    -> forall tau', lc_ty_mono tau' -> exists T1' T2', inst (subst_ty_mono_ty_poly tau' x sig) (ty_rho_tau (ty_mono_func T1' T2')) .
+Proof with eauto.
+  intros sig T1 T2 x Hinst.
+  dependent induction Hinst; intros.
+  - destruct sig; try discriminate.
+    destruct rho; try discriminate.
+    destruct tau; try discriminate.
+    destruct (eq_dec x0 a); subst.
+    + inversion x. destruct (a == a); try discriminate.
+    + inversion x. destruct (a == x0); try discriminate.
+    + simpl.
+      exists (subst_ty_mono_ty_mono tau' x0 tau1).
+      exists (subst_ty_mono_ty_mono tau' x0 tau2).
+      inversion x; subst. constructor. constructor.
+      dependent induction H.
+Admitted.
+
+Theorem canonical_forms_fun0: forall t T1 T2,
+  typing empty t (ty_poly_rho (ty_rho_tau (ty_mono_func T1 T2)))
+    -> is_value_of_tm t 
+    -> exists u, t = exp_abs u.
+Proof with eauto.
+  intros t T1 T2 Ht.
+  dependent induction Ht; try discriminate; intros...
+  - destruct H1.
+  - destruct H.
+  - destruct H1.
+  - destruct H0.
+  - destruct sig. destruct rho. destruct tau0; try discriminate...
+    destruct n; cbv in x. destruct tau; try discriminate.
+    inversion x; subst.
+Admitted.
 
 Theorem canonical_forms_fun: forall t T,
   typing empty t T
@@ -129,17 +226,23 @@ Theorem canonical_forms_fun: forall t T,
     -> exists u, t = exp_abs u.
 Proof with eauto.
   intros t T Ht.
-  dependent induction Ht; subst; try discriminate; intros; 
-  try (inversion H; eauto);
-  try (inversion H0; eauto);
-  try (inversion H1; eauto);
-  try (inversion H2; eauto).
-  - pick fresh x.
-    specialize (H0 x ltac:(auto) ltac:(auto)).
-    rewrite (subst_ty_mono_ty_poly_intro x) in H4.
-    apply gen_inst_fun in H4. destruct H4 as [T1' [T2' H4]].
-    specialize (H0 T1' T2' H4 H2)... fsetdec.
-Qed.
+  dependent induction Ht; try discriminate; intros.
+  - inversion H.
+  - inversion H2.
+  - inversion H1; subst...
+  - inversion H0.
+  - inversion H2.
+  - inversion H1.
+  - remember (ty_poly_poly_gen sig) as sig'.
+    remember (ty_rho_tau (ty_mono_func T1 T2)) as rho.
+    induction H1; subst; try discriminate.
+    inversion Heqsig'; subst. clear H3.
+    pick fresh a. specialize (H1 a ltac:(auto)).
+    specialize (H0 a ltac:(auto) ltac:(auto) T1 T2 H1 H2)...
+  - induction sig.
+    + admit.
+    + specialize (IHHt ltac:(auto))...
+Admitted.
 
 Lemma empty_ctx_typing_lc: forall e T,
   typing empty e T -> lc_tm e.
@@ -153,24 +256,35 @@ Qed.
 
 #[export] Hint Resolve empty_ctx_typing_lc : core.
 
+(* Lemma uniq_type_int: forall T n,
+  typing empty (exp_lit n) T
+    -> inst T (ty_rho_tau ty_mono_base).
+Proof with eauto.
+  intros. dependent induction H...
+  + pick fresh a.
+    specialize (H a ltac:(auto)).
+    specialize (H0 a ltac:(auto) n ltac:(auto) ltac:(auto)).
+    inversion H0; subst...
+  + specialize (IHtyping n ltac:(auto) ltac:(auto)).
+    inversion IHtyping; subst. pick fresh x.
+    rewrite (subst_ty_mono_ty_poly_intro x _ tau0) in H2...
+    apply gen_inst_int in H2.
+
+ *)
+
 Lemma empty_ctx_typing_lc_ty: forall e T,
   typing empty e T -> lc_ty_poly T.
 Proof with eauto.
-  intros e T H.
-  dependent induction H; subst...
-  - destruct H0...
-  - admit.
+  intros e. destruct T.
+  dependent induction e; intros; inversion H; subst...
+  - destruct sig; try discriminate H0. constructor.
+    destruct rho0; destruct tau0.
+    + cbv...
+    + destruct n; simpl...
+      simpl.
+  (* - clear H0. pick fresh x; specialize (H x ltac:(auto)). *)
+    (* induction t; cbv in H. inversion H; subst. *)
 Admitted.
-
-#[export] Hint Resolve empty_ctx_typing_lc : core.
-
-(* Lemma empty_ctx_typing_closed: forall e T, *)
-(*   typing empty e T -> fv_tm e [=] {}. *)
-(* Proof with eauto. *)
-(*   intros e T H. *)
-(*   assert (Hlc: lc_tm e)... *)
-(*   induction H; subst; simpl in *; try fsetdec. *)
-(* Admitted. *)
 
 Theorem progress : forall e T,
   typing empty e T ->
@@ -201,8 +315,6 @@ Proof with eauto.
     specialize H0 with x; specialize H1 with x.
     assert (n1 := n); apply H0 in n; apply H1 in n1...
 Qed.
-
-
 
 (* Strengthened version of the weakening lemma 
  * Referenced Stlc.Lec2_sol from Metalib repo *)

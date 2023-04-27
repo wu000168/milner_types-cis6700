@@ -277,7 +277,26 @@ by
 ------------------- :: erase
  annot t sig --> t
 
+% defns
+% JGen :: '' ::=
 
+% defn
+% |-gen sig1 <= rho :: :: gen :: 'gen_'
+% {{ tex \vdash^{\text{inst} }[[sig1]]\le[[rho]] }}
+% by
+% %  closed rho
+% --------------------------------------------- :: refl
+%  |-gen rho <= rho
+
+% % %  closed r[ a |-> tau ] rho
+% % --------------------------------------------- :: open
+% %  |-inst forall a . sig <= [ a |-> tau ] sig
+
+% %  closed tau
+%  |-gen sig <= rho
+% --------------------------------------------- :: trans
+%  |-gen forall a . sig <= rho
+ 
 defns
 JInst :: '' ::=
 
@@ -294,36 +313,6 @@ by
 %  |-inst forall a . sig <= [ a |-> tau ] sig
 
 %  closed tau
- |-inst [ a |-> tau ] sig <= rho
+ |-inst sig <= rho
 --------------------------------------------- :: trans
  |-inst forall a . sig <= rho
-
-% defns
-% JInstStep :: '' ::=
-
-% defn
-% |-inst sig1 < sig2 :: :: inst :: 'inst_'
-% {{ tex \vdash^{\text{inst} }[[sig1]]\le[[sig2]] }}
-% by
-% ---------------------------------------------- :: open
-%  |-inst forall a . sig < r[ a |-> tau ] sig
-
-% defns
-% JInst :: '' ::=
-
-% defn
-% |-inst sig <= rho :: :: inst :: 'inst_'
-% {{ tex \vdash^{\text{inst} }[[sig]]\le[[rho]] }}
-% by
-
-% -------------------------------------------- :: refl
-%  |-inst rho <= rho
-
-%  |-inst sig < rho
-% -------------------------------------------- :: step
-%  |-inst sig <= rho
-
-%  |-inst sig2 <= rho
-%  |-inst sig3 <= sig2
-% -------------------------------------------- :: trans
-%  |-inst sig3 <= rho
