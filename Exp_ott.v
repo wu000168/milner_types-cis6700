@@ -77,7 +77,7 @@ end.
 Fixpoint open_ty_poly_wrt_ty_mono_rec (k:nat) (tau5:ty_mono) (sig5:ty_poly) {struct sig5}: ty_poly :=
   match sig5 with
   | (ty_poly_rho rho) => ty_poly_rho (open_ty_rho_wrt_ty_mono_rec k tau5 rho)
-  | (ty_poly_poly_gen sig) => (* ty_poly_poly_gen (open_ty_poly_wrt_ty_mono_rec (S k) tau5 sig) *) sig
+  | (ty_poly_poly_gen sig) => ty_poly_poly_gen (open_ty_poly_wrt_ty_mono_rec (S k) tau5 sig)
 end.
 
 Fixpoint open_tm_wrt_ty_mono_rec (k:nat) (tau5:ty_mono) (t5:tm) {struct t5}: tm :=

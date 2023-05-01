@@ -93,17 +93,76 @@ Proof with eauto.
       admit.
 Admitted.
 
+Variant mono_flag :=
+  | func
+  | var_f
+  | var_b
+  | base.
+
+Fixpoint normalize_ty_poly_ty_mono (ty: ty_poly) (mf: mono_flag) : bool :=
+  match ty with
+  | ty_poly_rho (ty_rho_tau ty') =>
+      match ty', mf with
+      | ty_mono_base, base => true
+      | ty_mono_var_b _, var_b => true
+      | ty_mono_var_f _, var_f => true
+      | ty_mono_func _ _, func => true
+      | _,_ => false
+      end
+  | ty_poly_poly_gen sig => normalize_ty_poly_ty_mono sig mf
+  end.
+
+Lemma gen_preserves_flag : forall ty mf,
+    normalize_ty_poly_ty_mono ty mf = true <->
+    normalize_ty_poly_ty_mono (ty_poly_poly_gen ty) mf = true.
+Proof.
+  split; intros.
+  - induction ty; induction mf; simpl in *; try (destruct rho); try auto.
+  - simpl in H. auto.
+Qed.
+
+Theorem canonical_forms_fun_new: forall t T,
+typing empty t T
+  -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2)) 
+  -> is_value_of_tm t
+  -> normalize_ty_poly_ty_mono T func = true 
+  -> exists u, t = exp_abs u.
+Proof with eauto.
+  intros t T Ht.
+  dependent induction Ht; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Hinst); try inversion Hval; try inversion Harrow; subst...
+  - (* Functions *)
+    inversion Hinst; subst. 
+    pick fresh x.
+    specialize (H0 x ltac:(auto) ltac:(auto)).
+    specialize (H2 x ltac:(auto)).
+    specialize (H0 T1 T2 H2 ltac:(auto))...
+    
+    
+    admit.
+    (* inversion H0.
+    rewrite (subst_ty_mono_ty_poly_intro x) in H0.
+    destruct sig. *)
+  - pick fresh x. 
+    rewrite (subst_ty_mono_ty_poly_intro x) in Hinst.
+    eapply gen_inst_fun in Hinst...
+    destruct Hinst as [T1' [T2' Hinst]].
+    apply IHHt with T1' T2'...
+    apply inst_trans with (fv_tm t).
+    destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl.
+    + intros a Ha.
+      apply Hinst.
+    (* TODO: finish!!! *)
+
 
 Fixpoint is_arrow_type (ty: ty_poly) : bool := 
   match ty with 
   | ty_poly_rho (ty_rho_tau ty') =>
       (match ty' with 
-      | ty_mono_func tau1 tau2 => true 
+      | ty_mono_func _ _  => true 
       | _ => false
       end)
   | ty_poly_poly_gen sig => is_arrow_type sig 
   end.
-
 
 Lemma gen_preserves_arrows: forall ty,
   is_arrow_type ty = true ->
