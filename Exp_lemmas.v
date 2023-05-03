@@ -150,8 +150,8 @@ Proof with eauto.
     apply inst_trans with (fv_tm t).
     destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl.
     + intros a Ha.
-      apply Hinst.
     (* TODO: finish!!! *)
+Admitted.
 
 
 Fixpoint is_arrow_type (ty: ty_poly) : bool := 
@@ -221,6 +221,7 @@ Proof with eauto.
     destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl.
     + intros a Ha.
       apply Hinst.
+      Admitted.
     (* TODO: finish!!! *)
 
     
@@ -394,7 +395,7 @@ Proof.
   - eauto. Unshelve. apply L.
 Qed. 
  
-(** Original statemnent of the weakening lemma *)
+(** Original statement of the weakening lemma *)
 Theorem typing_weakening : forall (E F : ctx) t T,
   typing E t T -> 
   uniq (F ++ E) ->
@@ -730,6 +731,64 @@ Proof.
 Qed.
 
 
+Check subst_ty_mono_ty_poly.
+Check subst_ty_mono_ty_poly.
+
+
+(** Decomposes opening of type variables into opening of type variable 
+    opening & type variable substitution *)
+Lemma subst_ty_poly_ty_mono_intro : forall (a : tyvar) (sig: ty_poly) (tau: ty_mono),
+  a `notin` ftv_mono_ty_poly sig ->
+  open_ty_poly_wrt_ty_mono sig tau = subst_ty_mono_ty_poly tau a (open_ty_poly_wrt_ty_mono sig tau).
+Proof.
+  intros a sig tau Hfree.
+  unfold open_ty_poly_wrt_ty_mono.
+  generalize 0.
+  induction tau; intros n0; simpl; eauto.
+  - (* ty_mono_base *)
+    admit. (* TODO: not sure how to proceed *)
+  Admitted. 
+
+Check subst_ty_mono_ty_poly.  
+
+Fixpoint is_fresh_tyvar (alpha: tyvar) (Gamma: ctx) : bool := 
+  false.
+
+Fixpoint subst_ty_ctx (Gamma: ctx) (alpha: tyvar) (tau': ty_poly) : ctx := 
+  Gamma.
+  
+(* TODO: to prove need to implement the following auxiliary components: *)
+(* [is_fresh_tyvar] : predicate on [tyvars] which checks if a type variable is fresh with respect to the context *)
+(* [subst_ty_ctx] : applies a substitution of type variables across the context *)
+
+(* Substitution lemma for type variables *)
+Lemma ty_var_subst: forall (Gamma : ctx) (alpha: tyvar) e tau tau',
+  is_fresh_tyvar alpha Gamma = true -> 
+  typing Gamma e tau ->
+  typing (subst_ty_ctx Gamma alpha tau') (subst_ty_mono_tm tau' alpha e) (subst_ty_mono_ty_poly tau' alpha tau). 
+Proof.
+  Admitted.
+
+(* Alt version of preservation: Inducting on small-step relation *)  
+Theorem preservation_alt : forall (E : ctx) e e' T,
+  typing E e T ->
+  step e e' ->
+  typing E e' T.
+Proof with eauto.
+  intros E e e' T Htyp Hstep.
+  generalize dependent T.
+  induction Hstep.
+  - (* Step_let1 *)
+    intros T Htyp.
+    inversion Htyp; subst...
+    + (* Goal: E |- exp_let u' t \in ty_poly_poly_gen sig *) admit.
+    + pick fresh a. rewrite (subst_ty_poly_ty_mono_intro a).
+    Admitted.
+    (* Check subst_tm_intro.
+    * eapply (IHHstep _ Htyp). *)
+
+
+(* Original version of preservation: inducting on typing judgement *)
 Theorem preservation : forall (E : ctx) e e' T,
   typing E e T
     -> step e e'
@@ -747,7 +806,8 @@ Proof with eauto.
   - (* App case *)
     inversion J; subst; eauto.
     + inversion Htyp1; subst.
-      ++ pick fresh x. rewrite (subst_tm_intro x); auto. eapply typing_subst_simple; auto.
+      ++ pick fresh x. rewrite (subst_tm_intro x); auto. 
+      eapply typing_subst_simple; auto.
       ++ 
 
 
