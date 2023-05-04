@@ -710,11 +710,11 @@ Proof.
   intros Gamma.
   Admitted.
 
-
+(* Inversion lemmas for Let-expressions *)
 Lemma let_inversion : forall (Gamma : ctx) (u e : tm) (sig' : ty_poly),
     typing Gamma (exp_let u e) sig' ->
     exists L (sig : ty_poly), typing Gamma u sig /\
-                         forall x, x `notin` L -> typing (x~ sig++Gamma) e sig'.
+    forall x, x `notin` L -> typing ((x, sig)::Gamma) e sig'.
 Proof with eauto.
   intros Gamma u e sig' Htyping. remember (exp_let u e).
   dependent induction Htyping; try (inversion Heqt).
@@ -723,12 +723,9 @@ Proof with eauto.
     ++ eauto.
     ++ intros.
        specialize (H0 x H1).
+Admitted.
 
-
-
-  induction u.
-  - eexists. eexists. split. eauto. intros x Hnotin. induction e.
-    + 
+       
 
 (* Alt version of preservation: Inducting on small-step relation *)  
 Theorem preservation_alt : forall (E : ctx) e e' T,
@@ -741,7 +738,7 @@ Proof with eauto.
   induction Hstep.
   - (* Step_let1 *)
     intros T Htyp.
-    inversion Htyp; subst...
+    inversion Htyp; subst. eauto.
     + (* Goal: E |- exp_let u' t \in ty_poly_poly_gen sig *) admit.
     + pick fresh a. rewrite (subst_ty_poly_ty_mono_intro a)...
       (* TODO: Here is where we need the type subsituttion lemma *)
