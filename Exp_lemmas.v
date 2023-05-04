@@ -188,6 +188,10 @@ Proof with eauto.
   - apply gen_preserves_flag in Harrow as Harrow2.
     pick fresh x. specialize (H0 x). eapply H0... (* simpl in Hbad. *) 
     rewrite not_bad_open_func_equiv...
+    intros Hbad.
+    induction sig.
+    + induction rho; induction tau; try inversion Hbad; try (simpl in Hbad; discriminate).
+    + 
     (* How to prove this is not a bad type *)
     admit.
 
@@ -851,7 +855,28 @@ Lemma ty_var_subst: forall (Gamma : ctx) (alpha: tyvar) e (sig: ty_poly) (tau': 
   typing Gamma e sig ->
   typing (subst_ty_ctx Gamma alpha tau') (subst_ty_mono_tm tau' alpha e) (subst_ty_mono_ty_poly tau' alpha sig). 
 Proof.
+  intros Gamma.
   Admitted.
+
+
+Lemma let_inversion : forall (Gamma : ctx) (u e : tm) (sig' : ty_poly),
+    typing Gamma (exp_let u e) sig' ->
+    exists L (sig : ty_poly), typing Gamma u sig /\
+                         forall x, x `notin` L -> typing (x~ sig++Gamma) e sig'.
+Proof with eauto.
+  intros Gamma u e sig' Htyping. remember (exp_let u e).
+  dependent induction Htyping; try (inversion Heqt).
+  + subst.
+    repeat eexists.
+    ++ eauto.
+    ++ intros.
+       specialize (H0 x H1).
+
+
+
+  induction u.
+  - eexists. eexists. split. eauto. intros x Hnotin. induction e.
+    + 
 
 (* Alt version of preservation: Inducting on small-step relation *)  
 Theorem preservation_alt : forall (E : ctx) e e' T,
