@@ -119,7 +119,8 @@ Lemma not_bad_open_func_equiv : forall (sig: ty_poly),
     forall (tau : ty_mono), normalize_ty_poly_ty_mono (open_ty_poly_wrt_ty_mono sig tau) func = normalize_ty_poly_ty_mono sig func.
 Proof with eauto.
   intros sig Hbad tau. induction sig.
-  + destruct rho. destruct tau0; try (simpl; reflexivity). induction Hbad. simpl. auto.
+  + (* ty_poly_rho rho *)
+    destruct rho. destruct tau0; try (simpl; reflexivity). induction Hbad. simpl. auto.
   + simpl in Hbad. Search open_ty_poly_wrt_ty_mono.
 
 
@@ -804,10 +805,6 @@ Proof.
 Qed.
 
 
-Print subst_ty_mono_ty_poly.
-Check subst_ty_mono_ty_poly.
-
-
 (** Decomposes opening of type variables into opening of type variable 
     opening & type variable substitution *)
 Lemma subst_ty_poly_ty_mono_intro : forall (a : tyvar) (sig: ty_poly) (tau: ty_mono),
@@ -824,13 +821,15 @@ Proof.
 
 Check subst_ty_mono_ty_poly.  
 
-(* Is this what we want? *)
+(* Checks if a type variable is fresh with respect 
+   to a context -- Is this what we want? *)
 Fixpoint is_fresh_tyvar (alpha: tyvar) (Gamma: ctx) : bool :=
   match Gamma with
   | nil => true
   | (x,p) :: tl => if x == alpha then false else is_fresh_tyvar alpha tl
   end.
 
+(** Walks across a context & substitutes type variables*)  
 Fixpoint subst_ty_ctx (Gamma: ctx) (alpha: tyvar) (tau': ty_mono) : ctx :=
   match Gamma with
   | nil => nil
@@ -899,23 +898,7 @@ Proof with eauto.
     intros T Htyp; inversion Htyp; subst...
     + (* ty_poly_poly_gen sig *) 
       destruct sig.
-      Admitted.
-     
-
-
-
-
-      
-    
-      
-      
-
-
-      Admitted.
-  -  
-    (* Check subst_tm_intro.
-    * eapply (IHHstep _ Htyp). *)
-
+      Admitted.     
 
 (* Original version of preservation: inducting on typing judgement *)
 Theorem preservation : forall (E : ctx) e e' T,
@@ -935,31 +918,14 @@ Proof with eauto.
   - (* App case *)
     inversion J; subst; eauto.
     + inversion Htyp1; subst.
-      ++ pick fresh x. rewrite (subst_tm_intro x); auto. 
-      eapply typing_subst_simple; auto.
-      ++ 
-
-
-        pick fresh x. rewrite (subst_tm_intro x); auto. eapply typing_subst_simple; eauto. simpl.
-         
-
-
-
-         Print typing.
-         admit.
-    + 
-
-
-      admit.
-    (* inversion J; subst; eauto. *)
-    (* + inversion Htyp1; subst. *)
-    (*   * pick fresh y for (L \u fv_tm t0). *)
-    (*     rewrite (subst_tm_intro y); auto. *)
-    (*     eapply typing_subst_simple; auto. *)
-    (*   * admit. *)
-    (*     (* TODO: not sure how to prove typing derivations involving opening of terms *) *)
-    (* + inversion Htyp1; subst. *)
-    (*   admit. (* TODO: same problem as above *)  *)
+      ++ pick fresh x. 
+         rewrite (subst_tm_intro x); auto. 
+         eapply typing_subst_simple; auto.
+      ++ pick fresh x. 
+         rewrite (subst_tm_intro x); auto. 
+         eapply typing_subst_simple; eauto. simpl.
+         admit. (* TODO *)
+    + admit. (* TODO *)
   - (* Let case *)
     inversion J; subst; eauto.
     admit. (* TODO *)
