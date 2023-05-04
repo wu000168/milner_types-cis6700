@@ -121,36 +121,103 @@ Proof.
   - simpl in H. auto.
 Qed.
 
+(* B stuff *)
+Fixpoint bad (sig: ty_poly) : Prop :=
+  match sig with
+  | ty_poly_poly_gen sig2 => bad sig2
+  | ty_poly_rho (ty_rho_tau (ty_mono_var_b _)) => True
+  | ty_poly_rho (ty_rho_tau (ty_mono_var_f _)) => True
+  | _ => False
+  end.
+
+(* Lemma not_bad_open_func_equiv2 : forall (sig: ty_poly), *)
+(*     not (bad sig) -> *)
+(*     forall (tau : ty_mono), normalize_ty_poly_ty_mono (open_ty_poly_wrt_ty_mono (ty_poly_poly_gen sig) tau) func = normalize_ty_poly_ty_mono sig func. *)
+(* Proof. *)
+(*   intros sig Hbad tau. induction sig. *)
+(*   + admit. *)
+(*   +  *)
+
+Lemma not_bad_open_func_equiv : forall (sig: ty_poly),
+    not (bad sig) ->
+    forall (tau : ty_mono), normalize_ty_poly_ty_mono (open_ty_poly_wrt_ty_mono sig tau) func = normalize_ty_poly_ty_mono sig func.
+Proof with eauto.
+  intros sig Hbad tau. induction sig.
+  + destruct rho. destruct tau0; try (simpl; reflexivity). induction Hbad. simpl. auto.
+  + simpl in Hbad. simpl. unfold open_ty_poly_wrt_ty_mono in IHsig.
+
+
+    (* Does open inside the same as open a poly gen? *)
+    
+    
+    admit.
+Admitted.
+
+Lemma var_not_id : forall (t: tm) (sig: ty_poly),
+    bad (sig) ->
+    not (typing empty t sig).
+Proof with eauto.
+  intros t sig Hbad Htyping. induction Htyping; try (inversion Hbad).
+  + 
+Admitted.
+
 Theorem canonical_forms_fun_new: forall t T,
 typing empty t T
-  -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2)) 
+(* -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2))  *)
   -> is_value_of_tm t
   -> normalize_ty_poly_ty_mono T func = true 
   -> exists u, t = exp_abs u.
 Proof with eauto.
+  (* intros t T Ht. induction t; induction T; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Harrow); try (inversion Hval); subst... *)
+  (* - induction rho; induction tau; try inversion Harrow. admit. *)
+  (* -  *)
   intros t T Ht.
-  dependent induction Ht; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Hinst); try inversion Hval; try inversion Harrow; subst...
-  - (* Functions *)
-    inversion Hinst; subst. 
-    pick fresh x.
-    specialize (H0 x ltac:(auto) ltac:(auto)).
-    specialize (H2 x ltac:(auto)).
-    specialize (H0 T1 T2 H2 ltac:(auto))...
-    
-    
+  dependent induction Ht; subst; intros (* T1 T2 *) (* Hinst *) (* Hbad *) Hval Harrow.
+  - inversion Harrow.
+  - inversion Hval.
+  - exists t. reflexivity.
+  - inversion Hval.
+  - inversion Hval.
+  - inversion Hval.
+  - apply gen_preserves_flag in Harrow as Harrow2.
+    pick fresh x. specialize (H0 x). eapply H0... (* simpl in Hbad. *) 
+    rewrite not_bad_open_func_equiv...
+    (* How to prove this is not a bad type *)
     admit.
-    (* inversion H0.
-    rewrite (subst_ty_mono_ty_poly_intro x) in H0.
-    destruct sig. *)
-  - pick fresh x. 
-    rewrite (subst_ty_mono_ty_poly_intro x) in Hinst.
-    eapply gen_inst_fun in Hinst...
-    destruct Hinst as [T1' [T2' Hinst]].
-    apply IHHt with T1' T2'...
-    apply inst_trans with (fv_tm t).
-    destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl.
-    + intros a Ha.
-    (* TODO: finish!!! *)
+
+  - apply IHHt... simpl. rewrite not_bad_open_func_equiv in Harrow... (* How to prove a sig is not bad... *)
+    admit.
+
+
+
+
+
+
+
+  
+  (* intros t T Ht. *)
+  (* dependent induction Ht; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Hinst); try inversion Hval; try inversion Harrow; subst... *)
+  (* - (* Functions *) *)
+  (*   inversion Hinst; subst.  *)
+  (*   pick fresh x. *)
+  (*   specialize (H0 x ltac:(auto) ltac:(auto)). *)
+  (*   specialize (H2 x ltac:(auto)). *)
+  (*   specialize (H0 T1 T2 H2 ltac:(auto))... *)
+    
+    
+  (*   admit. *)
+  (*   (* inversion H0. *)
+  (*   rewrite (subst_ty_mono_ty_poly_intro x) in H0. *)
+  (*   destruct sig. *) *)
+  (* - pick fresh x.  *)
+  (*   rewrite (subst_ty_mono_ty_poly_intro x) in Hinst. *)
+  (*   eapply gen_inst_fun in Hinst... *)
+  (*   destruct Hinst as [T1' [T2' Hinst]]. *)
+  (*   apply IHHt with T1' T2'... *)
+  (*   apply inst_trans with (fv_tm t). *)
+  (*   destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl. *)
+  (*   + intros a Ha. *)
+  (*   (* TODO: finish!!! *) *)
 Admitted.
 
 
