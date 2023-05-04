@@ -731,7 +731,7 @@ Proof.
 Qed.
 
 
-Check subst_ty_mono_ty_poly.
+Print subst_ty_mono_ty_poly.
 Check subst_ty_mono_ty_poly.
 
 
@@ -782,8 +782,53 @@ Proof with eauto.
     intros T Htyp.
     inversion Htyp; subst...
     + (* Goal: E |- exp_let u' t \in ty_poly_poly_gen sig *) admit.
-    + pick fresh a. rewrite (subst_ty_poly_ty_mono_intro a).
-    Admitted.
+    + pick fresh a. rewrite (subst_ty_poly_ty_mono_intro a)...
+      (* TODO: Here is where we need the type subsituttion lemma *)
+      admit.
+  - (* Step_let *)  
+    intros T Htyp; inversion Htyp; subst.
+    + (* rho *)
+      pick fresh x. 
+      rewrite (subst_tm_intro x)...
+      eapply typing_subst_simple... 
+    + (* ty_poly_poly_gen sig *) 
+      pick fresh x.
+      rewrite (subst_tm_intro x)...
+      eapply typing_subst_simple.
+      * admit. (* TODO: not sure how to proceed *)
+      * admit. (* TODO *)
+    + (* open_ty_poly_wrt_ty_mono sig tau *) 
+      pick fresh a. 
+      rewrite (subst_ty_poly_ty_mono_intro a)...
+      admit. (* TODO: apply type substitution lemma*)
+  - (* Step_app1 *) 
+    intros T Htyp; inversion Htyp; subst...
+    + (* ty_poly_poly_gen sig *) 
+      destruct sig.
+      * admit.
+      * admit.
+    + (* open_ty_poly_wrt_ty_mono sig tau *)  
+      pick fresh a.
+      rewrite (subst_ty_poly_ty_mono_intro a)...
+      admit. (* TODO: apply type substitution lemma*)
+  - (* Step_app2 *) 
+    intros T Htyp; inversion Htyp; subst...
+    + (* ty_poly_poly_gen sig *) 
+      destruct sig.
+      Admitted.
+     
+
+
+
+
+      
+    
+      
+      
+
+
+      Admitted.
+  -  
     (* Check subst_tm_intro.
     * eapply (IHHstep _ Htyp). *)
 
