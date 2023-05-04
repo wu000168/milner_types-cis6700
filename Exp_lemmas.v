@@ -67,31 +67,7 @@ Ltac gather_atoms ::=
 (*************************************************************************)
 
 
-Lemma gen_inst_fun: forall tau sig T1 T2 x,
-  inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau (ty_mono_func T1 T2))
-    -> exists T1' T2', inst sig (ty_rho_tau (ty_mono_func T1' T2')) .
-Proof with eauto.
-  intros tau sig T1 T2 x Hinst. dependent induction Hinst; intros.
-  - destruct sig.
-    + destruct rho. simpl in x. inversion x. clear x; simpl in H1.
-      rewrite subst_ty_mono_ty_mono_fresh_eq in H1...
-      destruct tau0; try discriminate. exists tau0_1. exists tau0_2.
-      constructor. rewrite H1 in H...
-      induction tau0; simpl in H1; try discriminate. destruct (a == x0).
-      ++ destruct tau; try discriminate. injection H1; intros; subst. 
-         inversion H; subst. inversion H2; subst.
-         (* Don't know how to proceed *) admit.
-      ++ discriminate.
-      ++ Search union. apply notin_union_3.
-         +++ apply IHtau0_1. simpl. injection H1; intros.  admit. (* apply notin_union_3. *)
-         +++ admit.
-    + simpl in x. discriminate.
-  - destruct sig.
-    + simpl in x. discriminate.
-    + eexists. eexists. eapply inst_trans. 
-      
-      admit.
-Admitted.
+
 
 Variant mono_flag :=
   | func
@@ -159,6 +135,33 @@ Lemma var_not_id : forall (t: tm) (sig: ty_poly),
 Proof with eauto.
   intros t sig Hbad Htyping. induction Htyping; try (inversion Hbad).
   + 
+Admitted.
+
+
+Lemma gen_inst_fun: forall tau sig T1 T2 x,
+  inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau (ty_mono_func T1 T2))
+    -> exists T1' T2', inst sig (ty_rho_tau (ty_mono_func T1' T2')) .
+Proof with eauto.
+  intros tau sig T1 T2 x Hinst. dependent induction Hinst; intros.
+  - destruct sig.
+    + destruct rho. simpl in x. inversion x. clear x; simpl in H1.
+      rewrite subst_ty_mono_ty_mono_fresh_eq in H1...
+      destruct tau0; try discriminate. exists tau0_1. exists tau0_2.
+      constructor. rewrite H1 in H...
+      induction tau0; simpl in H1; try discriminate. destruct (a == x0).
+      ++ destruct tau; try discriminate. injection H1; intros; subst. 
+         inversion H; subst. inversion H2; subst.
+         (* Don't know how to proceed *) admit.
+      ++ discriminate.
+      ++ Search union. apply notin_union_3.
+         +++ apply IHtau0_1. simpl. injection H1; intros.  admit. (* apply notin_union_3. *)
+         +++ admit.
+    + simpl in x. discriminate.
+  - destruct sig.
+    + simpl in x. discriminate.
+    + eexists. eexists. eapply inst_trans. 
+      
+      admit.
 Admitted.
 
 Theorem canonical_forms_fun_new: forall t T,
@@ -258,38 +261,38 @@ Proof.
   Admitted.
     
 
-Theorem canonical_forms_fun_new: forall t T,
-typing empty t T
-  -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2)) 
-  -> is_value_of_tm t
-  -> is_arrow_type T = true 
-  -> exists u, t = exp_abs u.
-Proof with eauto.
-  intros t T Ht.
-  dependent induction Ht; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Hinst); try inversion Hval; try inversion Harrow; subst...
-  - (* Functions *)
-    inversion Hinst; subst. 
-    pick fresh x.
-    specialize (H0 x ltac:(auto) ltac:(auto)).
-    specialize (H2 x ltac:(auto)).
-    specialize (H0 T1 T2 H2 ltac:(auto))...
+(* Theorem canonical_forms_fun_new: forall t T, *)
+(* typing empty t T *)
+(*   -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2))  *)
+(*   -> is_value_of_tm t *)
+(*   -> is_arrow_type T = true  *)
+(*   -> exists u, t = exp_abs u. *)
+(* Proof with eauto. *)
+(*   intros t T Ht. *)
+(*   dependent induction Ht; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Hinst); try inversion Hval; try inversion Harrow; subst... *)
+(*   - (* Functions *) *)
+(*     inversion Hinst; subst.  *)
+(*     pick fresh x. *)
+(*     specialize (H0 x ltac:(auto) ltac:(auto)). *)
+(*     specialize (H2 x ltac:(auto)). *)
+(*     specialize (H0 T1 T2 H2 ltac:(auto))... *)
     
     
-    admit.
-    (* inversion H0.
-    rewrite (subst_ty_mono_ty_poly_intro x) in H0.
-    destruct sig. *)
-  - pick fresh x. 
-    rewrite (subst_ty_mono_ty_poly_intro x) in Hinst.
-    eapply gen_inst_fun in Hinst...
-    destruct Hinst as [T1' [T2' Hinst]].
-    apply IHHt with T1' T2'...
-    apply inst_trans with (fv_tm t).
-    destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl.
-    + intros a Ha.
-      apply Hinst.
-      Admitted.
-    (* TODO: finish!!! *)
+(*     admit. *)
+(*     (* inversion H0. *)
+(*     rewrite (subst_ty_mono_ty_poly_intro x) in H0. *)
+(*     destruct sig. *) *)
+(*   - pick fresh x.  *)
+(*     rewrite (subst_ty_mono_ty_poly_intro x) in Hinst. *)
+(*     eapply gen_inst_fun in Hinst... *)
+(*     destruct Hinst as [T1' [T2' Hinst]]. *)
+(*     apply IHHt with T1' T2'... *)
+(*     apply inst_trans with (fv_tm t). *)
+(*     destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl. *)
+(*     + intros a Ha. *)
+(*       apply Hinst. *)
+(*       Admitted. *)
+(*     (* TODO: finish!!! *) *)
 
     
      
@@ -304,24 +307,24 @@ Theorem canonical_forms_fun_conjunction: forall t T,
     -> is_value_of_tm t
     -> exists u, t = exp_abs u.
 Proof with eauto.
-  intros t T Ht.
-  dependent induction Ht; subst; intros T1 T2 [Hinst | Harrow] Hval; 
-  try (inversion Hinst); try inversion Harrow; try inversion Hval; subst...
-  - inversion Hinst; subst.
-    pick fresh x.
-    specialize (H0 x ltac:(auto) ltac:(auto)).
-    specialize (H3 x ltac:(auto)).
-    rewrite (subst_ty_mono_ty_poly_intro x) in H3.
-    apply gen_inst_fun in H3. destruct H3 as [T1' [T2' H4]].
-    (** TODO: the following line doesn't work *)
-    admit. 
-    (* specialize (H0 T1' T2' H4 H2)... fsetdec. *)
-  - pick fresh x. rewrite (subst_ty_mono_ty_poly_intro x) in H0.
-    eapply gen_inst_fun in H0. 
-    destruct H0 as [T1' [T2' H2]].
-    apply IHHt with T1' T2'; eauto. 
-    apply inst_trans with (fv_tm t).
-    destruct sig; unfold open_ty_poly_wrt_ty_mono in *; simpl.
+  (* intros t T Ht. *)
+  (* dependent induction Ht; subst; intros T1 T2 [Hinst | Harrow] Hval;  *)
+  (* try (inversion Hinst); try inversion Harrow; try inversion Hval; subst... *)
+  (* - inversion Hinst; subst. *)
+  (*   pick fresh x. *)
+  (*   specialize (H0 x ltac:(auto) ltac:(auto)). *)
+  (*   specialize (H3 x ltac:(auto)). *)
+  (*   rewrite (subst_ty_mono_ty_poly_intro x) in H3. *)
+  (*   apply gen_inst_fun in H3. destruct H3 as [T1' [T2' H4]]. *)
+  (*   (** TODO: the following line doesn't work *) *)
+  (*   admit.  *)
+  (*   (* specialize (H0 T1' T2' H4 H2)... fsetdec. *) *)
+  (* - pick fresh x. rewrite (subst_ty_mono_ty_poly_intro x) in H0. *)
+  (*   eapply gen_inst_fun in H0.  *)
+  (*   destruct H0 as [T1' [T2' H2]]. *)
+  (*   apply IHHt with T1' T2'; eauto.  *)
+  (*   apply inst_trans with (fv_tm t). *)
+  (*   destruct sig; unfold open_ty_poly_wrt_ty_mono in *; simpl. *)
     Admitted.
 
 Theorem canonical_forms_fun: forall t T,
