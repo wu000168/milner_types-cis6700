@@ -120,7 +120,10 @@ Lemma not_bad_open_func_equiv : forall (sig: ty_poly),
 Proof with eauto.
   intros sig Hbad tau. induction sig.
   + destruct rho. destruct tau0; try (simpl; reflexivity). induction Hbad. simpl. auto.
-  + simpl in Hbad. simpl. unfold open_ty_poly_wrt_ty_mono in IHsig.
+  + simpl in Hbad. Search open_ty_poly_wrt_ty_mono.
+
+
+    simpl. unfold open_ty_poly_wrt_ty_mono in IHsig.
 
 
     (* Does open inside the same as open a poly gen? *)
@@ -821,21 +824,32 @@ Proof.
 
 Check subst_ty_mono_ty_poly.  
 
-Fixpoint is_fresh_tyvar (alpha: tyvar) (Gamma: ctx) : bool := 
-  false.
+(* Is this what we want? *)
+Fixpoint is_fresh_tyvar (alpha: tyvar) (Gamma: ctx) : bool :=
+  match Gamma with
+  | nil => true
+  | (x,p) :: tl => if x == alpha then false else is_fresh_tyvar alpha tl
+  end.
 
-Fixpoint subst_ty_ctx (Gamma: ctx) (alpha: tyvar) (tau': ty_poly) : ctx := 
-  Gamma.
+Fixpoint subst_ty_ctx (Gamma: ctx) (alpha: tyvar) (tau': ty_mono) : ctx :=
+  match Gamma with
+  | nil => nil
+  | (x,p) :: tl => if x == alpha then (x,ty_poly_rho (ty_rho_tau tau'))::tl else (x,p)::subst_ty_ctx tl alpha tau'
+  end.
   
 (* TODO: to prove need to implement the following auxiliary components: *)
 (* [is_fresh_tyvar] : predicate on [tyvars] which checks if a type variable is fresh with respect to the context *)
 (* [subst_ty_ctx] : applies a substitution of type variables across the context *)
 
+
+(* We are trying to say that if
+Gamma, (x:type) |- M
+ *)
 (* Substitution lemma for type variables *)
-Lemma ty_var_subst: forall (Gamma : ctx) (alpha: tyvar) e tau tau',
+Lemma ty_var_subst: forall (Gamma : ctx) (alpha: tyvar) e (sig: ty_poly) (tau': ty_mono),
   is_fresh_tyvar alpha Gamma = true -> 
-  typing Gamma e tau ->
-  typing (subst_ty_ctx Gamma alpha tau') (subst_ty_mono_tm tau' alpha e) (subst_ty_mono_ty_poly tau' alpha tau). 
+  typing Gamma e sig ->
+  typing (subst_ty_ctx Gamma alpha tau') (subst_ty_mono_tm tau' alpha e) (subst_ty_mono_ty_poly tau' alpha sig). 
 Proof.
   Admitted.
 
