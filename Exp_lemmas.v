@@ -67,7 +67,7 @@ Ltac gather_atoms ::=
 (*************************************************************************)
 
 
-
+(* Special thanks to Yiyun for all the guides and coq help!!! *)
 
 Variant mono_flag :=
   | func
@@ -75,292 +75,143 @@ Variant mono_flag :=
   | var_b
   | base.
 
-Fixpoint normalize_ty_poly_ty_mono (ty: ty_poly) (mf: mono_flag) : bool :=
-  match ty with
-  | ty_poly_rho (ty_rho_tau ty') =>
-      match ty', mf with
-      | ty_mono_base, base => true
-      | ty_mono_var_b _, var_b => true
-      | ty_mono_var_f _, var_f => true
-      | ty_mono_func _ _, func => true
-      | _,_ => false
-      end
-  | ty_poly_poly_gen sig => normalize_ty_poly_ty_mono sig mf
+Fixpoint normalize_mono (tau : ty_mono) (mf : mono_flag) : bool :=
+  match tau, mf with
+  | ty_mono_base, base => true
+  | ty_mono_var_b _, var_b => true
+  | ty_mono_var_f _, var_f => true
+  | ty_mono_func _ _, func => true
+  | _, _=> false
   end.
 
-Lemma gen_preserves_flag : forall ty mf,
-    normalize_ty_poly_ty_mono ty mf = true <->
-    normalize_ty_poly_ty_mono (ty_poly_poly_gen ty) mf = true.
+Fixpoint normalize_rho (rho : ty_rho) (mf : mono_flag) : bool :=
+  match rho with
+  | ty_rho_tau tau => normalize_mono tau mf
+  end.
+
+Fixpoint normalize_poly (sig : ty_poly) (mf : mono_flag) : bool :=
+  match sig with
+  | ty_poly_rho rho => normalize_rho rho mf
+  | ty_poly_poly_gen sig' => normalize_poly sig' mf
+  end.
+
+From Coq Require Import ssreflect ssrfun ssrbool.
+From Hammer Require Import Tactics.
+
+Lemma normalize_open_n_var_rec : forall (sig: ty_poly) (n : nat) (a : tyvar),
+    normalize_poly (open_ty_poly_wrt_ty_mono_rec n (ty_mono_var_f a) sig) func = normalize_poly (sig) func.
 Proof.
-  split; intros.
-  - induction ty; induction mf; simpl in *; try (destruct rho); try auto.
-  - simpl in H. auto.
+  intros sig. elim : sig.
+  - intros rho. elim : rho. intros tau. elim : tau; intros; simpl; try (reflexivity). destruct (lt_eq_lt_dec).
+    + destruct s; auto.
+    + auto.
+  - intros sig IH n a. simpl. apply IH.
 Qed.
 
-(* B stuff *)
-Fixpoint bad (sig: ty_poly) : Prop :=
-  match sig with
-  | ty_poly_poly_gen sig2 => bad sig2
-  | ty_poly_rho (ty_rho_tau (ty_mono_var_b _)) => True
-  | ty_poly_rho (ty_rho_tau (ty_mono_var_f _)) => True
-  | _ => False
+Lemma is_fun_poly_open: forall sig tau n,
+    normalize_poly sig func -> normalize_poly (open_ty_poly_wrt_ty_mono_rec n tau sig) func.
+Proof with eauto.
+  intros sig. induction sig.
+  - induction rho. induction tau; intros tau' Htau'; try (inversion tau'); auto.
+  - intros. simpl in H. unfold open_ty_poly_wrt_ty_mono. simpl.
+    apply IHsig. auto.
+Qed.
+(* Qed. *)
+
+Fixpoint bad_fun_mono (tau : ty_mono) :=
+  match tau with
+  | ty_mono_var_b _ => true
+  | ty_mono_var_f _ => true
+  | _ => false
   end.
 
-(* Lemma not_bad_open_func_equiv2 : forall (sig: ty_poly), *)
-(*     not (bad sig) -> *)
-(*     forall (tau : ty_mono), normalize_ty_poly_ty_mono (open_ty_poly_wrt_ty_mono (ty_poly_poly_gen sig) tau) func = normalize_ty_poly_ty_mono sig func. *)
-(* Proof. *)
-(*   intros sig Hbad tau. induction sig. *)
-(*   + admit. *)
-(*   +  *)
+Fixpoint bad_fun_rho (rho : ty_rho) :=
+  match rho with
+  | ty_rho_tau tau => bad_fun_mono tau
+  end.
 
-Lemma not_bad_open_func_equiv : forall (sig: ty_poly),
-    not (bad sig) ->
-    forall (tau : ty_mono), normalize_ty_poly_ty_mono (open_ty_poly_wrt_ty_mono sig tau) func = normalize_ty_poly_ty_mono sig func.
+Fixpoint bad_fun_poly (sig : ty_poly) :=
+  match sig with
+  | ty_poly_rho rho => bad_fun_rho rho
+  | ty_poly_poly_gen sig' => bad_fun_poly sig'
+  end.
+
+Lemma bad_fun_poly_open_var_rec : forall (sig : ty_poly) (n : nat) (a : tyvar),
+    bad_fun_poly (open_ty_poly_wrt_ty_mono_rec n (ty_mono_var_f a) sig) = bad_fun_poly (sig).
+Proof.
+  intros sig. elim : sig.
+  - intros rho. elim : rho. intros tau0. elim : tau0; intros; simpl; try (reflexivity).
+    destruct lt_eq_lt_dec.
+    + destruct s; reflexivity.
+    + auto.
+  - intros sig IH n a. apply IH.
+Qed.
+
+Lemma bad_fun_poly_open_varb_rec : forall (sig : ty_poly) (n i : nat),
+    bad_fun_poly (open_ty_poly_wrt_ty_mono_rec n (ty_mono_var_b i) sig) = bad_fun_poly (sig).
+Proof.
+  intros sig. elim : sig.
+  - intros rho. elim : rho. intros tau. elim : tau; intros; simpl; try (reflexivity).
+    destruct lt_eq_lt_dec.
+    + destruct s; reflexivity.
+    + auto.
+  - intros sig IH n a. apply IH.
+Qed.
+
+Lemma not_bad_open_func_equiv : forall (sig: ty_poly) (n : nat) (tau : ty_mono),
+    not (bad_fun_poly sig) ->
+    normalize_poly (open_ty_poly_wrt_ty_mono_rec n tau sig) func = normalize_poly sig func.
 Proof with eauto.
-  intros sig Hbad tau. induction sig.
-  + (* ty_poly_rho rho *)
-    destruct rho. destruct tau0; try (simpl; reflexivity). induction Hbad. simpl. auto.
-  + simpl in Hbad. Search open_ty_poly_wrt_ty_mono.
+  intros sig. elim sig.
+  - intros rho; elim rho. intros tau; elim tau; intros; try (simpl; reflexivity).
+    simpl. destruct lt_eq_lt_dec. destruct s.
+    + simpl. reflexivity.
+    + simpl in H. unfold not in H. destruct H. auto.
+    + simpl. reflexivity.
+  - intros. simpl in H0. apply H. auto.
+Qed.
 
+Lemma bad_fun_poly_open_rec : forall (sig : ty_poly) (n : nat) (tau : ty_mono),
+    not (bad_fun_poly sig) ->
+    not (bad_fun_poly (open_ty_poly_wrt_ty_mono_rec n tau sig)).
+Proof.
+  intros sig. elim sig.
+  - intros rho. elim rho. intros tau. elim tau; auto.
+  - intros. apply H. auto.
+Qed.
 
-    simpl. unfold open_ty_poly_wrt_ty_mono in IHsig.
-
-
-    (* Does open inside the same as open a poly gen? *)
-    
-    
-    admit.
-Admitted.
-
-Lemma var_not_id : forall (t: tm) (sig: ty_poly),
-    bad (sig) ->
-    not (typing empty t sig).
-Proof with eauto.
-  intros t sig Hbad Htyping. induction Htyping; try (inversion Hbad).
-  + 
-Admitted.
-
-
-Lemma gen_inst_fun: forall tau sig T1 T2 x,
-  inst (subst_ty_mono_ty_poly tau x sig) (ty_rho_tau (ty_mono_func T1 T2))
-    -> exists T1' T2', inst sig (ty_rho_tau (ty_mono_func T1' T2')) .
-Proof with eauto.
-  intros tau sig T1 T2 x Hinst. dependent induction Hinst; intros.
-  - destruct sig.
-    + destruct rho. simpl in x. inversion x. clear x; simpl in H1.
-      rewrite subst_ty_mono_ty_mono_fresh_eq in H1...
-      destruct tau0; try discriminate. exists tau0_1. exists tau0_2.
-      constructor. rewrite H1 in H...
-      induction tau0; simpl in H1; try discriminate. destruct (a == x0).
-      ++ destruct tau; try discriminate. injection H1; intros; subst. 
-         inversion H; subst. inversion H2; subst.
-         (* Don't know how to proceed *) admit.
-      ++ discriminate.
-      ++ Search union. apply notin_union_3.
-         +++ apply IHtau0_1. simpl. injection H1; intros.  admit. (* apply notin_union_3. *)
-         +++ admit.
-    + simpl in x. discriminate.
-  - destruct sig.
-    + simpl in x. discriminate.
-    + eexists. eexists. eapply inst_trans. 
-      
-      admit.
-Admitted.
+Theorem wt_no_bad_poly: forall (Gamma : ctx) (e : tm) (sig : ty_poly) (Htyping: typing Gamma e sig), 
+    is_value_of_tm e -> not (bad_fun_poly sig).
+Proof.
+  intros Gamma e sig Htyping.
+  elim Htyping; intros; auto.
+  - pick fresh x.
+    apply notin_union_1 in Fr as Fr1. specialize (H0 x Fr1 H1). unfold open_ty_poly_wrt_ty_mono in H0. rewrite bad_fun_poly_open_var_rec in H0. auto.
+  - unfold open_ty_poly_wrt_ty_mono. apply bad_fun_poly_open_rec. auto.
+Qed.
 
 Theorem canonical_forms_fun_new: forall t T,
 typing empty t T
 (* -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2))  *)
+  -> normalize_poly T func = true 
   -> is_value_of_tm t
-  -> normalize_ty_poly_ty_mono T func = true 
   -> exists u, t = exp_abs u.
-Proof with eauto.
-  (* intros t T Ht. induction t; induction T; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Harrow); try (inversion Hval); subst... *)
-  (* - induction rho; induction tau; try inversion Harrow. admit. *)
-  (* -  *)
-  intros t T Ht.
-  dependent induction Ht; subst; intros (* T1 T2 *) (* Hinst *) (* Hbad *) Hval Harrow.
-  - inversion Harrow.
-  - inversion Hval.
-  - exists t. reflexivity.
-  - inversion Hval.
-  - inversion Hval.
-  - inversion Hval.
-  - apply gen_preserves_flag in Harrow as Harrow2.
-    pick fresh x. specialize (H0 x). eapply H0... (* simpl in Hbad. *) 
-    rewrite not_bad_open_func_equiv...
-    intros Hbad.
-    induction sig.
-    + induction rho; induction tau; try inversion Hbad; try (simpl in Hbad; discriminate).
-    + 
-    (* How to prove this is not a bad type *)
-    admit.
-
-  - apply IHHt... simpl. rewrite not_bad_open_func_equiv in Harrow... (* How to prove a sig is not bad... *)
-    admit.
-
-
-
-
-
-
-
-  
-  (* intros t T Ht. *)
-  (* dependent induction Ht; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Hinst); try inversion Hval; try inversion Harrow; subst... *)
-  (* - (* Functions *) *)
-  (*   inversion Hinst; subst.  *)
-  (*   pick fresh x. *)
-  (*   specialize (H0 x ltac:(auto) ltac:(auto)). *)
-  (*   specialize (H2 x ltac:(auto)). *)
-  (*   specialize (H0 T1 T2 H2 ltac:(auto))... *)
-    
-    
-  (*   admit. *)
-  (*   (* inversion H0. *)
-  (*   rewrite (subst_ty_mono_ty_poly_intro x) in H0. *)
-  (*   destruct sig. *) *)
-  (* - pick fresh x.  *)
-  (*   rewrite (subst_ty_mono_ty_poly_intro x) in Hinst. *)
-  (*   eapply gen_inst_fun in Hinst... *)
-  (*   destruct Hinst as [T1' [T2' Hinst]]. *)
-  (*   apply IHHt with T1' T2'... *)
-  (*   apply inst_trans with (fv_tm t). *)
-  (*   destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl. *)
-  (*   + intros a Ha. *)
-  (*   (* TODO: finish!!! *) *)
-Admitted.
-
-
-Fixpoint is_arrow_type (ty: ty_poly) : bool := 
-  match ty with 
-  | ty_poly_rho (ty_rho_tau ty') =>
-      (match ty' with 
-      | ty_mono_func _ _  => true 
-      | _ => false
-      end)
-  | ty_poly_poly_gen sig => is_arrow_type sig 
-  end.
-
-Lemma gen_preserves_arrows: forall ty,
-  is_arrow_type ty = true ->
-  is_arrow_type (ty_poly_poly_gen ty) = true.
-Proof.
-  intros ty H.
-  induction ty.
-  - destruct rho. destruct tau; inversion H; eauto.
-  - eauto.
-Qed. 
-
-(* If a type is an arrow type, the shape of the type
-   is preserved under opening *)
-Lemma opening_preserves_arrows: forall ty L,
-  is_arrow_type ty = true ->
-  forall x : atom, x `notin` L ->
-  is_arrow_type (open_ty_poly_wrt_ty_mono ty (ty_mono_var_f x)) = true.
-Proof.
-  intros ty L Harrow.
-  induction ty.
-  - (* ty_poly_rho *)
-    destruct rho.
-    destruct tau; inversion Harrow; eauto.
-  - (* ty_poly_poly_gen *) 
-    inversion Harrow.
-  Admitted.
-    
-
-(* Theorem canonical_forms_fun_new: forall t T, *)
-(* typing empty t T *)
-(*   -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2))  *)
-(*   -> is_value_of_tm t *)
-(*   -> is_arrow_type T = true  *)
-(*   -> exists u, t = exp_abs u. *)
-(* Proof with eauto. *)
-(*   intros t T Ht. *)
-(*   dependent induction Ht; subst; intros T1 T2 Hinst Hval Harrow; try (inversion Hinst); try inversion Hval; try inversion Harrow; subst... *)
-(*   - (* Functions *) *)
-(*     inversion Hinst; subst.  *)
-(*     pick fresh x. *)
-(*     specialize (H0 x ltac:(auto) ltac:(auto)). *)
-(*     specialize (H2 x ltac:(auto)). *)
-(*     specialize (H0 T1 T2 H2 ltac:(auto))... *)
-    
-    
-(*     admit. *)
-(*     (* inversion H0. *)
-(*     rewrite (subst_ty_mono_ty_poly_intro x) in H0. *)
-(*     destruct sig. *) *)
-(*   - pick fresh x.  *)
-(*     rewrite (subst_ty_mono_ty_poly_intro x) in Hinst. *)
-(*     eapply gen_inst_fun in Hinst... *)
-(*     destruct Hinst as [T1' [T2' Hinst]]. *)
-(*     apply IHHt with T1' T2'... *)
-(*     apply inst_trans with (fv_tm t). *)
-(*     destruct sig; unfold open_ty_mono_wrt_ty_mono in *; simpl. *)
-(*     + intros a Ha. *)
-(*       apply Hinst. *)
-(*       Admitted. *)
-(*     (* TODO: finish!!! *) *)
-
-    
-     
-
-
-
-(** Note: having the conjunction doesn't seem to work because
-    we can't specialize with a conjunction *)
-Theorem canonical_forms_fun_conjunction: forall t T,
-  typing empty t T
-    -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2)) \/ is_arrow_type T = true
-    -> is_value_of_tm t
-    -> exists u, t = exp_abs u.
-Proof with eauto.
-  (* intros t T Ht. *)
-  (* dependent induction Ht; subst; intros T1 T2 [Hinst | Harrow] Hval;  *)
-  (* try (inversion Hinst); try inversion Harrow; try inversion Hval; subst... *)
-  (* - inversion Hinst; subst. *)
-  (*   pick fresh x. *)
-  (*   specialize (H0 x ltac:(auto) ltac:(auto)). *)
-  (*   specialize (H3 x ltac:(auto)). *)
-  (*   rewrite (subst_ty_mono_ty_poly_intro x) in H3. *)
-  (*   apply gen_inst_fun in H3. destruct H3 as [T1' [T2' H4]]. *)
-  (*   (** TODO: the following line doesn't work *) *)
-  (*   admit.  *)
-  (*   (* specialize (H0 T1' T2' H4 H2)... fsetdec. *) *)
-  (* - pick fresh x. rewrite (subst_ty_mono_ty_poly_intro x) in H0. *)
-  (*   eapply gen_inst_fun in H0.  *)
-  (*   destruct H0 as [T1' [T2' H2]]. *)
-  (*   apply IHHt with T1' T2'; eauto.  *)
-  (*   apply inst_trans with (fv_tm t). *)
-  (*   destruct sig; unfold open_ty_poly_wrt_ty_mono in *; simpl. *)
-    Admitted.
-
-Theorem canonical_forms_fun: forall t T,
-  typing empty t T
-    -> forall T1 T2, inst T (ty_rho_tau (ty_mono_func T1 T2))
-    -> is_value_of_tm t
-    -> exists u, t = exp_abs u.
 Proof with eauto.
   intros t T Ht.
   dependent induction Ht; subst; try discriminate; intros.
-  - inversion H.
   - inversion H2.
-  - exists t. reflexivity.
+  - exists t. auto.
   - inversion H0.
   - inversion H2.
   - inversion H1.
-  - inversion H1; subst.
-    pick fresh x.
-    specialize (H0 x ltac:(auto) ltac:(auto)).
-    specialize (H4 x ltac:(auto)).
-    rewrite (subst_ty_mono_ty_poly_intro x) in H4.
-    apply gen_inst_fun in H4. destruct H4 as [T1' [T2' H4]].
-    specialize (H0 T1' T2' H4 H2)... fsetdec.
-  - pick fresh x. rewrite (subst_ty_mono_ty_poly_intro x) in H0.
-    eapply gen_inst_fun in H0. destruct H0 as [T1' [T2' H2]].
-    apply IHHt with T1' T2'; eauto. apply inst_trans with (fv_tm t).
-    destruct sig; unfold open_ty_poly_wrt_ty_mono in *; simpl.
-    Admitted.    
+  - pick fresh x. eapply H0; try auto.
+    simpl in H2. unfold open_ty_poly_wrt_ty_mono. rewrite normalize_open_n_var_rec. auto.
+  - apply IHHt; auto.
+    unfold open_ty_poly_wrt_ty_mono in H0. erewrite not_bad_open_func_equiv in H0.
+    + auto.
+    + Search bad_fun_poly.
+      eapply wt_no_bad_poly in Ht; auto.
+Qed.
 
 Lemma empty_ctx_typing_lc: forall e T,
   typing empty e T -> lc_tm e.
@@ -414,13 +265,13 @@ Proof with eauto.
   induction H0; subst;
   try (left; constructor)...
   - right; destruct IHtyping1; destruct IHtyping2...
-    + assert (Hlam: exists u, t = exp_abs u).
-      { apply (canonical_forms_fun t _ H0_ tau1 tau2)... constructor.
-        eapply empty_ctx_typing_lc_ty in H0_. inversion H0_... }
+    + assert (Hnorm: normalize_poly (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) func). auto.
+      assert (Hlam: exists u, t = exp_abs u).
+      { apply (canonical_forms_fun_new t (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) H0_ Hnorm H0)...}
       destruct Hlam; subst...
-    + assert (Hlam: exists u, t = exp_abs u).
-      { apply (canonical_forms_fun t _ H0_ tau1 tau2)... constructor.
-      eapply empty_ctx_typing_lc_ty in H0_. inversion H0_... }
+    + assert (Hnorm: normalize_poly (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) func). auto.
+      assert (Hlam: exists u, t = exp_abs u).
+      { apply (canonical_forms_fun_new t (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) H0_ Hnorm H0)...}
       destruct Hlam as [t1 Hlam]; subst...
       destruct H1 as [u' H1]. eexists...
     + destruct H0 as [t' H0]. eexists...
@@ -809,6 +660,10 @@ Proof.
 Qed.
 
 
+Print subst_ty_mono_ty_poly.
+Check subst_ty_mono_ty_poly.
+
+
 (** Decomposes opening of type variables into opening of type variable 
     opening & type variable substitution *)
 Lemma subst_ty_poly_ty_mono_intro : forall (a : tyvar) (sig: ty_poly) (tau: ty_mono),
@@ -825,15 +680,13 @@ Proof.
 
 Check subst_ty_mono_ty_poly.  
 
-(* Checks if a type variable is fresh with respect 
-   to a context -- Is this what we want? *)
+(* Is this what we want? *)
 Fixpoint is_fresh_tyvar (alpha: tyvar) (Gamma: ctx) : bool :=
   match Gamma with
   | nil => true
   | (x,p) :: tl => if x == alpha then false else is_fresh_tyvar alpha tl
   end.
 
-(** Walks across a context & substitutes type variables*)  
 Fixpoint subst_ty_ctx (Gamma: ctx) (alpha: tyvar) (tau': ty_mono) : ctx :=
   match Gamma with
   | nil => nil
@@ -923,7 +776,23 @@ Proof with eauto.
     intros T Htyp; inversion Htyp; subst...
     + (* ty_poly_poly_gen sig *) 
       destruct sig.
-      Admitted.     
+      Admitted.
+     
+
+
+
+
+      
+    
+      
+      
+
+
+      Admitted.
+  -  
+    (* Check subst_tm_intro.
+    * eapply (IHHstep _ Htyp). *)
+
 
 (* Original version of preservation: inducting on typing judgement *)
 Theorem preservation : forall (E : ctx) e e' T,
@@ -943,14 +812,31 @@ Proof with eauto.
   - (* App case *)
     inversion J; subst; eauto.
     + inversion Htyp1; subst.
-      ++ pick fresh x. 
-         rewrite (subst_tm_intro x); auto. 
-         eapply typing_subst_simple; auto.
-      ++ pick fresh x. 
-         rewrite (subst_tm_intro x); auto. 
-         eapply typing_subst_simple; eauto. simpl.
-         admit. (* TODO *)
-    + admit. (* TODO *)
+      ++ pick fresh x. rewrite (subst_tm_intro x); auto. 
+      eapply typing_subst_simple; auto.
+      ++ 
+
+
+        pick fresh x. rewrite (subst_tm_intro x); auto. eapply typing_subst_simple; eauto. simpl.
+         
+
+
+
+         Print typing.
+         admit.
+    + 
+
+
+      admit.
+    (* inversion J; subst; eauto. *)
+    (* + inversion Htyp1; subst. *)
+    (*   * pick fresh y for (L \u fv_tm t0). *)
+    (*     rewrite (subst_tm_intro y); auto. *)
+    (*     eapply typing_subst_simple; auto. *)
+    (*   * admit. *)
+    (*     (* TODO: not sure how to prove typing derivations involving opening of terms *) *)
+    (* + inversion Htyp1; subst. *)
+    (*   admit. (* TODO: same problem as above *)  *)
   - (* Let case *)
     inversion J; subst; eauto.
     admit. (* TODO *)
