@@ -209,7 +209,7 @@ Proof with eauto.
   - apply IHHt; auto.
     unfold open_ty_poly_wrt_ty_mono in H0. erewrite not_bad_open_func_equiv in H0.
     + auto.
-    + Search bad_fun_poly.
+    + 
       eapply wt_no_bad_poly in Ht; auto.
 Qed.
 
