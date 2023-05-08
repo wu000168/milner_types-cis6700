@@ -237,13 +237,7 @@ Proof with eauto.
         (* +++ simpl in H2. inversion H2. *) admit.
       ++ inversion H1; subst. inversion H3; subst. auto.
     + simpl. admit.
-  - Search "~=". 
-
-
-
-
-
-    admit.
+  - admit.
 Admitted.
 
 #[export] Hint Resolve empty_ctx_typing_lc : core.
@@ -267,7 +261,7 @@ Proof with eauto.
   - right; destruct IHtyping1; destruct IHtyping2...
     + assert (Hnorm: normalize_poly (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) func). auto.
       assert (Hlam: exists u, t = exp_abs u).
-      { apply (canonical_forms_fun_new t (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) H0_ Hnorm H0)...}
+      { apply (canonical_forms_fun_new t (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) H0 _ Hnorm H0).}
       destruct Hlam; subst...
     + assert (Hnorm: normalize_poly (ty_poly_rho (ty_rho_tau (ty_mono_func tau1 tau2))) func). auto.
       assert (Hlam: exists u, t = exp_abs u).
@@ -566,12 +560,13 @@ Proof.
       apply typing_weakening.
       ++ assumption.
       ++ eapply uniq_remove_mid. apply Huniq.
-  - apply typ_var.
+      Admitted.
+  (* - apply typ_var.
     + eapply uniq_remove_mid. apply Huniq.
     + eapply binds_remove_mid.
       ++ apply Hbinds.
       ++ assumption.
-Qed.
+Qed. *)
 
 (* Well-typed terms are locally closed. *)
 Lemma typing_to_lc_tm : forall E e T,
@@ -678,7 +673,9 @@ Proof.
     admit. (* TODO: not sure how to proceed *)
   Admitted. 
 
-Check subst_ty_mono_ty_poly.  
+  
+
+
 
 (* Is this what we want? *)
 Fixpoint is_fresh_tyvar (alpha: tyvar) (Gamma: ctx) : bool :=
@@ -692,7 +689,28 @@ Fixpoint subst_ty_ctx (Gamma: ctx) (alpha: tyvar) (tau': ty_mono) : ctx :=
   | nil => nil
   | (x,p) :: tl => if x == alpha then (x,ty_poly_rho (ty_rho_tau tau'))::tl else (x,p)::subst_ty_ctx tl alpha tau'
   end.
+    
+
+Fixpoint subst_ty_ctx_new (Gamma: ctx) (alpha: tyvar) (tau': ty_mono) : ctx :=
+  map (fun sig => 
+    subst_ty_mono_ty_poly tau' alpha sig) Gamma.
+
+Lemma subst_ty_ctx_preserves_flags:
+  forall (Gamma Gamma' : ctx) (a: tyvar) t (tau: ty_mono) T T' (mf: mono_flag),
+  typing Gamma t T ->
+  Gamma' = subst_ty_ctx_new Gamma a tau ->
+  typing Gamma t T' ->
+  normalize_ty_poly_ty_mono T mf = normalize_ty_poly_ty_mono T' mf.
+Proof.
+  intros Gamma Gamma' a t tau T T' mf Htyp Heq.
+  generalize dependent Gamma'.
+  intros Gamma' HG Ht.
+  induction mf.
+  - inversion Ht. (* TODO: not sure how to continue *)
+  Admitted.
   
+
+
 (* TODO: to prove need to implement the following auxiliary components: *)
 (* [is_fresh_tyvar] : predicate on [tyvars] which checks if a type variable is fresh with respect to the context *)
 (* [subst_ty_ctx] : applies a substitution of type variables across the context *)
@@ -705,27 +723,103 @@ Gamma, (x:type) |- M
 Lemma ty_var_subst: forall (Gamma : ctx) (alpha: tyvar) e (sig: ty_poly) (tau': ty_mono),
   is_fresh_tyvar alpha Gamma = true -> 
   typing Gamma e sig ->
-  typing (subst_ty_ctx Gamma alpha tau') (subst_ty_mono_tm tau' alpha e) (subst_ty_mono_ty_poly tau' alpha sig). 
+  typing (subst_ty_ctx_new Gamma alpha tau') (subst_ty_mono_tm tau' alpha e) (subst_ty_mono_ty_poly tau' alpha sig). 
 Proof.
-  intros Gamma.
+  intros Gamma alpha e sig tau' Hfresh Htyp.
+  remember (subst_ty_ctx_new Gamma alpha tau') as G.
+  generalize dependent G.
+  induction e; intros.
+  - destruct sig. destruct rho. destruct tau.  
+    inversion Htyp; subst.
+    + simpl; constructor.
+    + simpl; constructor.
+    + rewrite H. 
+      simpl.
+      constructor.
+    + simpl.
+      inversion Htyp; subst; eauto.
+Admitted.      
+  
+(** Shallow subsumption relation *)
+Inductive sh : ty_poly -> ty_poly -> Prop :=    (* defn sh *)
+  | sh_refl : forall (sig:ty_poly),
+      lc_ty_poly sig ->
+      sh sig sig
+  | sh_spec : forall (rho1 rho2:ty_rho) (tau:ty_mono),
+      sh  (open_ty_poly_wrt_ty_mono (ty_poly_rho rho1) tau )  (ty_poly_rho rho2) ->
+      sh (ty_poly_poly_gen (ty_poly_rho rho1)) (ty_poly_rho rho2)
+  | sh_skol : forall (L:vars) (sig:ty_poly) (rho:ty_rho),
+        ( forall a , a \notin  L  -> sh  ( open_ty_poly_wrt_ty_mono sig (ty_mono_var_f a) )  (ty_poly_rho  ( open_ty_rho_wrt_ty_mono rho (ty_mono_var_f a) ) ) )  ->
+      sh (ty_poly_poly_gen sig) (ty_poly_poly_gen (ty_poly_rho rho)).
+
+Notation "'|-sh' sig '<=' sig'" := (sh sig sig') (at level 40).
+
+
+Lemma annot_inversion : forall (Gamma : ctx) (e : tm) (sig sig': ty_poly),
+  typing Gamma (exp_type_anno e sig) sig' ->
+  sh sig sig' ->
+  typing Gamma e sig.
+Proof.
+  intros Gamma e sig sig' Htyp Hsh.
+  induction Hsh; inversion Htyp; subst; eauto.
+  - admit.
+  - pick fresh a.
+    rewrite (subst_ty_poly_ty_mono_intro a).
+    admit. admit.
+  - admit.
+  - pick fresh a. 
+    assert (a `notin` L).
+    { fsetdec. }
   Admitted.
+
+Lemma abs_inversion : forall G t T1 T2 L,
+  typing G (exp_abs t) (ty_poly_rho (ty_rho_tau (ty_mono_func T1 T2))) ->
+  forall x, x \notin L -> typing ((x, ty_poly_rho (ty_rho_tau T1)) :: G) (open_tm_wrt_tm t (exp_var_f x)) (ty_poly_rho (ty_rho_tau T2)).
+Proof.
+  intros G t T1 T2 L Htyp.
+  remember (exp_abs t).
+  generalize dependent t.
+  induction Htyp; intros;
+    repeat discriminate Heqt0.
+  - (* TODO: figure out how to prove this inversion lemma *)
+    admit.
+  - admit. 
+Admitted.
+    
+
+
+        
+  
 
 (* Inversion lemmas for Let-expressions *)
 Lemma let_inversion : forall (Gamma : ctx) (u e : tm) (sig' : ty_poly),
     typing Gamma (exp_let u e) sig' ->
     exists L (sig : ty_poly), typing Gamma u sig /\
-    forall x, x `notin` L -> typing ((x, sig)::Gamma) e sig'.
+    forall x, x `notin` L -> typing ((x, sig)::Gamma) e sig'. 
 Proof with eauto.
   intros Gamma u e sig' Htyping. remember (exp_let u e).
-  dependent induction Htyping; try (inversion Heqt).
-  + subst.
+  dependent induction Htyping; try (inversion Heqt). 
+  + (* ty_poly_rho rho *)
+    subst.
     repeat eexists.
     ++ eauto.
     ++ intros.
        specialize (H0 x H1).
-Admitted.
-
-       
+       simpl in H0.
+       admit.
+  + (* ty_poly_poly_gen (ty_poly_rho rho) *)  
+    subst.
+    exists L. 
+    pick fresh a.
+    exists (ty_poly_rho (open_ty_rho_wrt_ty_mono rho (ty_mono_var_f a))).
+    admit.
+  + (* open_ty_poly_wrt_ty_mono (ty_poly_rho rho) tau *) 
+    inversion Htyping; subst; eauto.
+    discriminate H4.
+    * discriminate H4.
+    * admit. (* TODO: not sure how to relate 
+    [ty_poly_poly_gen (ty_poly_rho rho) to [open_ty_rho_wrt_ty_mono rho (ty_mono_var_f a)]] *) 
+Admitted.       
 
 (* Alt version of preservation: Inducting on small-step relation *)  
 Theorem preservation_alt : forall (E : ctx) e e' T,
@@ -742,11 +836,12 @@ Proof with eauto.
     + (* Goal: E |- exp_let u' t \in ty_poly_poly_gen sig *) admit.
     + pick fresh a. rewrite (subst_ty_poly_ty_mono_intro a)...
       (* TODO: Here is where we need the type subsituttion lemma *)
-      admit.
+      * admit.
+      * admit.  
   - (* Step_let *)  
     intros T Htyp; inversion Htyp; subst.
     + (* rho *)
-      pick fresh x. 
+      pick fresh x.
       rewrite (subst_tm_intro x)...
       eapply typing_subst_simple... 
     + (* ty_poly_poly_gen sig *) 
@@ -759,37 +854,18 @@ Proof with eauto.
       pick fresh a. 
       rewrite (subst_ty_poly_ty_mono_intro a)...
       admit. (* TODO: apply type substitution lemma*)
+      admit.
   - (* Step_app1 *) 
     intros T Htyp; inversion Htyp; subst...
-    + (* ty_poly_poly_gen sig *) 
-      destruct sig.
-      * admit.
-      * admit.
     + (* open_ty_poly_wrt_ty_mono sig tau *)  
-      pick fresh a.
-      rewrite (subst_ty_poly_ty_mono_intro a)...
-      admit. (* TODO: apply type substitution lemma*)
+      pick fresh a. admit.
+      (* TODO: apply type substitution lemma*)
+    + admit.
   - (* Step_app2 *) 
     intros T Htyp; inversion Htyp; subst...
-    + (* ty_poly_poly_gen sig *) 
-      destruct sig.
-      Admitted.
-     
-
-
-
-
-      
-    
-      
-      
-
-
-      Admitted.
-  -  
-    (* Check subst_tm_intro.
-    * eapply (IHHstep _ Htyp). *)
-
+    + admit. 
+    + admit.
+  Admitted.
 
 (* Original version of preservation: inducting on typing judgement *)
 Theorem preservation : forall (E : ctx) e e' T,
@@ -811,20 +887,9 @@ Proof with eauto.
     + inversion Htyp1; subst.
       ++ pick fresh x. rewrite (subst_tm_intro x); auto. 
       eapply typing_subst_simple; auto.
-      ++ 
-
-
-        pick fresh x. rewrite (subst_tm_intro x); auto. eapply typing_subst_simple; eauto. simpl.
-         
-
-
-
-         Print typing.
-         admit.
-    + 
-
-
-      admit.
+      ++ pick fresh x. rewrite (subst_tm_intro x); auto. eapply typing_subst_simple; eauto. simpl.
+        admit.
+    + admit.
     (* inversion J; subst; eauto. *)
     (* + inversion Htyp1; subst. *)
     (*   * pick fresh y for (L \u fv_tm t0). *)
